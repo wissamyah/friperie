@@ -38,8 +38,15 @@ import PageLoader from './PageLoader';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState(() => {
-    // Load saved tab from localStorage on mount
-    return localStorage.getItem('activeTab') || 'dashboard';
+    // Load saved tab from localStorage on mount, default to 'dashboard'
+    const savedTab = localStorage.getItem('activeTab');
+    const validTabs = ['dashboard', 'products', 'sales', 'suppliers', 'containers', 'cash', 'expenses', 'payments', 'ledger', 'reports', 'settings'];
+
+    // If saved tab is valid, use it; otherwise default to 'dashboard'
+    if (savedTab && validTabs.includes(savedTab)) {
+      return savedTab;
+    }
+    return 'dashboard';
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isOnline] = useState(navigator.onLine);
@@ -373,6 +380,7 @@ export default function Dashboard() {
             <PageLoader {...getLoadingContent()} />
           ) : (
             <>
+              {activeTab === 'dashboard' && <DashboardHome />}
               {activeTab === 'products' && <Products />}
               {activeTab === 'sales' && <Sales />}
               {activeTab === 'suppliers' && <Suppliers onNavigateToLedger={handleNavigateToLedger} />}
@@ -383,7 +391,8 @@ export default function Dashboard() {
               {activeTab === 'ledger' && <SupplierLedger preselectedSupplierId={selectedSupplierId} />}
               {activeTab === 'reports' && <Reports />}
               {activeTab === 'settings' && <Settings />}
-              {activeTab === 'dashboard' && <DashboardHome />}
+              {/* Fallback to dashboard if no tab matches */}
+              {!['dashboard', 'products', 'sales', 'suppliers', 'containers', 'cash', 'expenses', 'payments', 'ledger', 'reports', 'settings'].includes(activeTab) && <DashboardHome />}
             </>
           )}
         </main>
