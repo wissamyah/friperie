@@ -1,0 +1,1 @@
+- Always remember to ensure that data: DataState in our GitHubAPIClient.ts file, fetches all the that is being saved on our data.json file
