@@ -7,6 +7,20 @@ export class GitHubAPIClient {
     this.config = config;
   }
 
+  /**
+   * Update the data file path
+   */
+  updateDataFilePath(newPath: string): void {
+    this.config.path = newPath;
+  }
+
+  /**
+   * Get current data file path
+   */
+  getCurrentPath(): string {
+    return this.config.path;
+  }
+
   async fetchData(): Promise<{ data: DataState; sha: string }> {
     if (!this.config.token) {
       throw new Error("GitHub token not configured");
@@ -159,5 +173,59 @@ export class GitHubAPIClient {
 
   updateToken(token: string): void {
     this.config.token = token;
+  }
+
+  /**
+   * Check if a specific data file exists in the repository
+   */
+  async checkFileExists(filePath: string): Promise<boolean> {
+    if (!this.config.token) {
+      throw new Error("GitHub token not configured");
+    }
+
+    const url = `${this.config.apiBase}/repos/${this.config.owner}/${this.config.repo}/contents/${filePath}?ref=${this.config.branch}`;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${this.config.token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      });
+      return response.ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * List files in a directory
+   */
+  async listFiles(directoryPath: string): Promise<string[]> {
+    if (!this.config.token) {
+      throw new Error("GitHub token not configured");
+    }
+
+    const url = `${this.config.apiBase}/repos/${this.config.owner}/${this.config.repo}/contents/${directoryPath}?ref=${this.config.branch}`;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${this.config.token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const files = await response.json();
+      return Array.isArray(files)
+        ? files.filter((f: any) => f.type === "file").map((f: any) => f.name)
+        : [];
+    } catch (e) {
+      return [];
+    }
   }
 }

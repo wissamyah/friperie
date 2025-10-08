@@ -6,6 +6,7 @@ export interface GitHubConfig {
   branch: string; // Usually 'main'
   token: string | null; // Personal access token
   apiBase: string; // 'https://api.github.com'
+  dataFileName?: string; // Current data file name (e.g., 'data.json', 'data2.json')
 }
 
 // Product entity

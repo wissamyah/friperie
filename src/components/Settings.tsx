@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Settings as SettingsIcon, Trash2, AlertTriangle, Package, Truck, Container, BookOpen, DollarSign, ShoppingCart, Receipt, Wallet } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, Trash2, AlertTriangle, Package, Truck, Container, BookOpen, DollarSign, ShoppingCart, Receipt, Wallet, FileText, Plus, RefreshCw } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useContainers } from '../hooks/useContainers';
@@ -11,6 +11,8 @@ import { useCashSituation } from '../hooks/useCashSituation';
 import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import ConfirmModal from './ConfirmModal';
 import Spinner from './Spinner';
+import { githubDataManager } from '../services/githubDataManager';
+import { dataFileManager, DataFile } from '../services/DataFileManager';
 
 interface DataTypeOption {
   id: keyof DataSelectionState;
@@ -55,6 +57,75 @@ export default function Settings() {
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Data file management state
+  const [currentDataFile, setCurrentDataFile] = useState<string>('');
+  const [availableDataFiles, setAvailableDataFiles] = useState<DataFile[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [isSwitchingFile, setIsSwitchingFile] = useState(false);
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
+  const [showCreateFileModal, setShowCreateFileModal] = useState(false);
+  const [showSwitchFileModal, setShowSwitchFileModal] = useState(false);
+  const [fileToSwitchTo, setFileToSwitchTo] = useState<string>('');
+
+  // Load available data files on mount
+  useEffect(() => {
+    loadAvailableDataFiles();
+    setCurrentDataFile(githubDataManager.getCurrentDataFile());
+  }, []);
+
+  const loadAvailableDataFiles = async () => {
+    setIsLoadingFiles(true);
+    try {
+      const files = await githubDataManager.listAvailableDataFiles();
+      const dataFiles = dataFileManager.getAvailableDataFiles(files);
+      setAvailableDataFiles(dataFiles);
+    } catch (error: any) {
+      console.error('Failed to load data files:', error);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+
+  const handleSwitchDataFile = async () => {
+    if (!fileToSwitchTo) return;
+
+    setIsSwitchingFile(true);
+    try {
+      await githubDataManager.switchDataFile(fileToSwitchTo);
+      setCurrentDataFile(fileToSwitchTo);
+      setShowSwitchFileModal(false);
+      setFileToSwitchTo('');
+
+      // Reload page to refresh all data
+      window.location.reload();
+    } catch (error: any) {
+      alert(`Failed to switch data file: ${error.message}`);
+    } finally {
+      setIsSwitchingFile(false);
+    }
+  };
+
+  const handleCreateNewFile = async () => {
+    setIsCreatingFile(true);
+    try {
+      const nextFileName = dataFileManager.getNextDataFileName(
+        availableDataFiles.map(f => f.name)
+      );
+
+      await githubDataManager.createNewDataFile(nextFileName);
+      await loadAvailableDataFiles();
+      setCurrentDataFile(nextFileName);
+      setShowCreateFileModal(false);
+
+      // Reload page to refresh all data
+      window.location.reload();
+    } catch (error: any) {
+      alert(`Failed to create new data file: ${error.message}`);
+    } finally {
+      setIsCreatingFile(false);
+    }
+  };
 
   const dataTypes: DataTypeOption[] = [
     {
@@ -184,6 +255,121 @@ export default function Settings() {
         <div>
           <h1 className="text-2xl font-bold text-creed-text-bright mb-1">Settings</h1>
           <p className="text-creed-muted">Manage your application data and preferences</p>
+        </div>
+      </div>
+
+      {/* Data File Selector Section */}
+      <div className="backdrop-blur-sm rounded-lg border shadow-card" style={{
+        backgroundColor: '#1a2129',
+        borderColor: '#2d3748',
+        borderWidth: '1px'
+      }}>
+        <div className="p-6 border-b" style={{ borderColor: '#2d3748' }}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-creed-primary/10">
+              <FileText className="w-5 h-5 text-creed-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-creed-text-bright">Data File Management</h2>
+              <p className="text-sm text-creed-muted mt-0.5">
+                Switch between different data files or create new ones
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {/* Current Data File */}
+          <div className="flex items-center justify-between p-4 rounded-lg" style={{
+            backgroundColor: '#0f1419',
+            borderColor: '#2d3748',
+            borderWidth: '1px'
+          }}>
+            <div>
+              <p className="text-xs text-creed-muted">Currently Active</p>
+              <p className="text-sm font-semibold text-creed-text mt-1">
+                {dataFileManager.getDisplayName(currentDataFile)}
+              </p>
+              <p className="text-xs text-creed-muted mt-0.5">{currentDataFile}</p>
+            </div>
+            <button
+              onClick={loadAvailableDataFiles}
+              disabled={isLoadingFiles}
+              className="p-2 rounded-lg hover:bg-creed-primary/10 transition-all disabled:opacity-50"
+              title="Refresh file list"
+            >
+              <RefreshCw className={`w-4 h-4 text-creed-primary ${isLoadingFiles ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          {/* Available Data Files */}
+          <div>
+            <label className="block text-sm font-medium text-creed-text mb-2">
+              Available Data Files
+            </label>
+            {isLoadingFiles ? (
+              <div className="flex items-center justify-center p-8">
+                <Spinner size="sm" />
+              </div>
+            ) : availableDataFiles.length === 0 ? (
+              <p className="text-sm text-creed-muted text-center py-4">No data files found</p>
+            ) : (
+              <div className="space-y-2">
+                {availableDataFiles.map((file) => {
+                  const isActive = file.name === currentDataFile;
+                  return (
+                    <button
+                      key={file.name}
+                      onClick={() => {
+                        if (!isActive && !githubDataManager.hasPendingSaves()) {
+                          setFileToSwitchTo(file.name);
+                          setShowSwitchFileModal(true);
+                        } else if (githubDataManager.hasPendingSaves()) {
+                          alert('Please wait for all changes to be saved before switching data files.');
+                        }
+                      }}
+                      disabled={isActive || saveStatus === 'saving'}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all disabled:cursor-not-allowed ${
+                        isActive
+                          ? 'bg-creed-primary/10 border-creed-primary'
+                          : 'hover:bg-creed-primary/5 border-transparent'
+                      }`}
+                      style={{
+                        borderWidth: '1px'
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className={`w-4 h-4 ${isActive ? 'text-creed-primary' : 'text-creed-muted'}`} />
+                        <div className="text-left">
+                          <p className={`text-sm font-medium ${isActive ? 'text-creed-primary' : 'text-creed-text'}`}>
+                            {file.displayName}
+                          </p>
+                          <p className="text-xs text-creed-muted">{file.name}</p>
+                        </div>
+                      </div>
+                      {isActive && (
+                        <span className="text-xs font-semibold text-creed-primary px-2 py-1 rounded-full bg-creed-primary/20">
+                          Active
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Create New File Button */}
+          <div className="pt-4 border-t" style={{ borderColor: '#2d3748' }}>
+            <button
+              onClick={() => setShowCreateFileModal(true)}
+              disabled={saveStatus === 'saving' || isCreatingFile}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-sm text-white bg-creed-primary hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-4 h-4" />
+              Create New Data File
+            </button>
+          </div>
         </div>
       </div>
 
@@ -319,7 +505,7 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Confirmation Modal */}
+      {/* Data Reset Confirmation Modal */}
       <ConfirmModal
         isOpen={showConfirmModal}
         onClose={() => !isDeleting && setShowConfirmModal(false)}
@@ -337,6 +523,53 @@ export default function Settings() {
         confirmText="Yes, Delete Permanently"
         cancelText="Cancel"
         isLoading={isDeleting}
+        loadingText="Deleting..."
+      />
+
+      {/* Switch Data File Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showSwitchFileModal}
+        onClose={() => !isSwitchingFile && setShowSwitchFileModal(false)}
+        onConfirm={handleSwitchDataFile}
+        title="Switch Data File"
+        message={
+          <>
+            Switch to <strong className="text-creed-primary">{dataFileManager.getDisplayName(fileToSwitchTo)}</strong>?
+            <br />
+            <span className="text-creed-muted text-xs mt-2 block">
+              The application will reload with the selected data file. Make sure all changes are saved before switching.
+            </span>
+          </>
+        }
+        confirmText="Switch Data File"
+        cancelText="Cancel"
+        isLoading={isSwitchingFile}
+        loadingText="Switching..."
+      />
+
+      {/* Create New Data File Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showCreateFileModal}
+        onClose={() => !isCreatingFile && setShowCreateFileModal(false)}
+        onConfirm={handleCreateNewFile}
+        title="Create New Data File"
+        message={
+          <>
+            Create a new data file: <strong className="text-creed-primary">
+              {dataFileManager.getDisplayName(
+                dataFileManager.getNextDataFileName(availableDataFiles.map(f => f.name))
+              )}
+            </strong>?
+            <br />
+            <span className="text-creed-muted text-xs mt-2 block">
+              A new empty data file will be created in your GitHub repository and set as the active file.
+            </span>
+          </>
+        }
+        confirmText="Create Data File"
+        cancelText="Cancel"
+        isLoading={isCreatingFile}
+        loadingText="Creating..."
       />
     </div>
   );

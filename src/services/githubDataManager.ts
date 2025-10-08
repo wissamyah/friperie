@@ -4,6 +4,7 @@ import { OfflineQueueManager } from "./github/OfflineQueueManager";
 import { CrossTabSync } from "./github/CrossTabSync";
 import { DataMerger } from "./github/DataMerger";
 import { DataState, GitHubConfig, SaveStatus } from "./github/types";
+import { dataFileManager } from "./DataFileManager";
 
 class GitHubDataManager {
   private static instance: GitHubDataManager;
@@ -35,14 +36,19 @@ class GitHubDataManager {
       ? localStorage.getItem('github_token')
       : null;
 
+    // Get current data file from DataFileManager
+    const currentDataFile = dataFileManager.getCurrentDataFile();
+    const dataFilePath = dataFileManager.getDataFilePath(currentDataFile);
+
     // GitHub configuration for friperie-data repo
     const config: GitHubConfig = {
       owner: "wissamyah",
       repo: "friperie-data",
-      path: "data/data.json",
+      path: dataFilePath,
       branch: "main",
       token: savedToken,
       apiBase: "https://api.github.com",
+      dataFileName: currentDataFile,
     };
 
     this.githubAPI = new GitHubAPIClient(config);
@@ -422,6 +428,100 @@ class GitHubDataManager {
       }, 2000);
     } catch (error: any) {
       this.updateSaveStatus("error", error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Switch to a different data file
+   */
+  async switchDataFile(fileName: string): Promise<void> {
+    // Validate file name
+    const validation = dataFileManager.validateDataFileName(fileName);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    // Update data file manager
+    dataFileManager.setCurrentDataFile(fileName);
+
+    // Update GitHub API client path
+    const newPath = dataFileManager.getDataFilePath(fileName);
+    this.githubAPI.updateDataFilePath(newPath);
+
+    // Clear cache to force reload
+    this.cacheManager.delete("github_data");
+    this.cacheManager.delete("github_sha");
+
+    // Load data from new file
+    await this.loadAllData(false, true);
+  }
+
+  /**
+   * Get current data file name
+   */
+  getCurrentDataFile(): string {
+    return dataFileManager.getCurrentDataFile();
+  }
+
+  /**
+   * List all available data files in the repository
+   */
+  async listAvailableDataFiles(): Promise<string[]> {
+    try {
+      const files = await this.githubAPI.listFiles("data");
+      return files.filter((f) => dataFileManager.isValidDataFileName(f));
+    } catch (error) {
+      console.error("Failed to list data files:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if a data file exists
+   */
+  async dataFileExists(fileName: string): Promise<boolean> {
+    const path = dataFileManager.getDataFilePath(fileName);
+    return await this.githubAPI.checkFileExists(path);
+  }
+
+  /**
+   * Create a new data file with default empty state
+   */
+  async createNewDataFile(fileName: string): Promise<void> {
+    // Validate file name
+    const validation = dataFileManager.validateDataFileName(fileName);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    // Check if file already exists
+    const exists = await this.dataFileExists(fileName);
+    if (exists) {
+      throw new Error(`Data file ${fileName} already exists`);
+    }
+
+    // Save current state
+    const currentFile = this.getCurrentDataFile();
+    const currentPath = this.githubAPI.getCurrentPath();
+
+    try {
+      // Switch to new file path
+      const newPath = dataFileManager.getDataFilePath(fileName);
+      this.githubAPI.updateDataFilePath(newPath);
+
+      // Create empty data state
+      const emptyData = this.dataMerger.getDefaultDataState();
+
+      // Save to GitHub (without SHA since it's a new file)
+      await this.githubAPI.saveData(emptyData);
+
+      // Switch to the new file
+      await this.switchDataFile(fileName);
+    } catch (error) {
+      // Restore previous file on error
+      this.githubAPI.updateDataFilePath(currentPath);
+      dataFileManager.setCurrentDataFile(currentFile);
       throw error;
     }
   }

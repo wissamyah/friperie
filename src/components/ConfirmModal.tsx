@@ -12,6 +12,7 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   isLoading?: boolean;
+  loadingText?: string;
 }
 
 export default function ConfirmModal({
@@ -23,6 +24,7 @@ export default function ConfirmModal({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   isLoading = false,
+  loadingText,
 }: ConfirmModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
@@ -58,7 +60,7 @@ export default function ConfirmModal({
             {isLoading ? (
               <>
                 <Spinner size="sm" />
-                Deleting...
+                {loadingText || 'Processing...'}
               </>
             ) : (
               confirmText
