@@ -53,7 +53,7 @@ export default function Containers() {
     allocateToContainer,
     removeAllocation,
   } = usePayments();
-  const { createContainerEntry, createPaymentEntry } = useSupplierLedger();
+  const { createContainerEntry, createPaymentEntry, deleteLedgerEntry, ledgerEntries } = useSupplierLedger();
   const { status: saveStatus } = useSaveStatusContext();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -221,6 +221,36 @@ export default function Containers() {
     const totalQuantity = currentStock + newStock;
 
     return totalValue / totalQuantity;
+  };
+
+  // Calculate reverse weighted average cost (when removing stock)
+  const calculateReverseWeightedAverageCost = (
+    currentStock: number,
+    currentCost: number,
+    removedStock: number,
+    removedCost: number
+  ): number => {
+    // If removing all stock, return 0
+    if (currentStock <= removedStock) {
+      return 0;
+    }
+
+    // Current total value
+    const currentTotalValue = currentStock * currentCost;
+
+    // Value being removed
+    const removedValue = removedStock * removedCost;
+
+    // Remaining value and stock
+    const remainingValue = currentTotalValue - removedValue;
+    const remainingStock = currentStock - removedStock;
+
+    // Avoid division by zero
+    if (remainingStock === 0) {
+      return 0;
+    }
+
+    return remainingValue / remainingStock;
   };
 
   // Add new product row
@@ -827,12 +857,122 @@ export default function Containers() {
   const handleDeleteContainer = async () => {
     if (!deleteConfirm) return;
 
-    const result = await deleteContainer(deleteConfirm.id);
+    const containerId = deleteConfirm.id;
+    const container = containers.find(c => c.id === containerId);
 
-    if (result.success) {
+    if (!container) {
+      alert('Container not found');
+      return;
+    }
+
+    try {
+      // Start batch update for atomic operation
+      githubDataManager.startBatchUpdate();
+
+      // STEP 1: Revert product stock and costs (if container was closed)
+      if (container.containerStatus === 'closed' && container.quantityAddedToStock) {
+        for (const [productId, stockData] of Object.entries(container.quantityAddedToStock)) {
+          const product = products.find(p => p.id === productId);
+          if (product) {
+            const { quantityAdded, stockBefore, costBefore } = stockData;
+
+            // Calculate the cost that was added by this container
+            const productRow = container.products.find(p => p.productId === productId);
+            if (!productRow) continue;
+
+            // Calculate this product's proportional cost from the container
+            const productLineTotal = productRow.quantityBags * productRow.priceEUR;
+            const productPercentage = container.grandTotalEUR > 0
+              ? productLineTotal / container.grandTotalEUR
+              : 0;
+            const productUSDCost = productPercentage * (container.totalUSDPaid + container.customsDutiesUSD);
+            const containerCostPerBag = quantityAdded > 0 ? productUSDCost / quantityAdded : 0;
+
+            // Calculate new cost by reversing the weighted average
+            const newCost = calculateReverseWeightedAverageCost(
+              product.quantity,
+              product.costPerBagUSD,
+              quantityAdded,
+              containerCostPerBag
+            );
+
+            // Calculate new quantity
+            const newQuantity = product.quantity - quantityAdded;
+
+            // Update product
+            const productResult = await updateProduct(productId, {
+              quantity: Math.max(0, newQuantity),
+              costPerBagUSD: newCost
+            });
+
+            if (!productResult.success) {
+              throw new Error(productResult.error || `Failed to revert stock for ${product.name}`);
+            }
+          }
+        }
+      }
+
+      // STEP 2: Deallocate payments
+      if (container.paymentAllocations && container.paymentAllocations.length > 0) {
+        const currentPayments = githubDataManager.getData('payments');
+
+        const updatedPayments = currentPayments.map(payment => {
+          // Check if this payment has an allocation to this container
+          const hasAllocation = payment.allocations.some(
+            alloc => alloc.containerId === containerId
+          );
+
+          if (!hasAllocation) {
+            return payment;
+          }
+
+          // Remove the allocation for this container
+          const updatedAllocations = payment.allocations.filter(
+            alloc => alloc.containerId !== containerId
+          );
+
+          // Recalculate unallocated amount
+          const totalAllocatedEUR = updatedAllocations.reduce(
+            (sum, alloc) => sum + alloc.amountEUR,
+            0
+          );
+          const unallocatedEUR = payment.amountEUR - totalAllocatedEUR;
+
+          return {
+            ...payment,
+            allocations: updatedAllocations,
+            unallocatedEUR,
+            updatedAt: new Date().toISOString(),
+          };
+        });
+
+        await githubDataManager.updateData('payments', updatedPayments, false);
+      }
+
+      // STEP 3: Remove supplier ledger entry
+      const ledgerEntry = ledgerEntries.find(
+        entry => entry.relatedContainerId === containerId
+      );
+      if (ledgerEntry) {
+        const deleteResult = await deleteLedgerEntry(ledgerEntry.id);
+        if (!deleteResult.success) {
+          throw new Error(deleteResult.error || 'Failed to delete ledger entry');
+        }
+      }
+
+      // STEP 4: Delete the container
+      const result = await deleteContainer(containerId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete container');
+      }
+
+      // End batch update
+      await githubDataManager.endBatchUpdate();
+
+      // Success
       setDeleteConfirm(null);
-    } else {
-      alert(`Failed to delete container: ${result.error}`);
+    } catch (error: any) {
+      alert(`Failed to delete container: ${error.message}`);
     }
   };
 
