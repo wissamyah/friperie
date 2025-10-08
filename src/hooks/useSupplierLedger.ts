@@ -198,8 +198,45 @@ export const useSupplierLedger = () => {
       setActionLoading({ action: "delete", id });
 
       try {
+        // Find the entry being deleted to get the supplier ID
+        const entryToDelete = ledgerEntries.find(e => e.id === id);
+        if (!entryToDelete) {
+          return { success: false, error: "Ledger entry not found" };
+        }
+
+        const supplierId = entryToDelete.supplierId;
+
+        // Remove the entry
         const filteredEntries = ledgerEntries.filter((entry) => entry.id !== id);
-        await updateLedgerEntries(filteredEntries);
+
+        // Get all remaining entries for this supplier
+        const supplierEntries = filteredEntries.filter(e => e.supplierId === supplierId);
+
+        // Sort chronologically (oldest first) by date, then by createdAt
+        const chronologicalEntries = supplierEntries.sort((a, b) => {
+          const dateA = new Date(a.date).getTime();
+          const dateB = new Date(b.date).getTime();
+          if (dateA === dateB) {
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          }
+          return dateA - dateB;
+        });
+
+        // Recalculate running balances chronologically
+        let runningBalance = 0;
+        const updatedSupplierEntries = chronologicalEntries.map(entry => {
+          runningBalance += entry.amount;
+          return {
+            ...entry,
+            balance: runningBalance
+          };
+        });
+
+        // Create final list with updated balances for this supplier
+        const otherSupplierEntries = filteredEntries.filter(e => e.supplierId !== supplierId);
+        const finalEntries = [...otherSupplierEntries, ...updatedSupplierEntries];
+
+        await updateLedgerEntries(finalEntries);
         return { success: true };
       } catch (error: any) {
         return { success: false, error: error.message };
