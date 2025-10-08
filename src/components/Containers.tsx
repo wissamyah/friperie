@@ -387,7 +387,8 @@ export default function Containers() {
         supplier.name,
         quickPaymentData.amountEUR,
         `Payment received - ${quickPaymentData.notes || 'No notes'}`,
-        quickPaymentData.date
+        quickPaymentData.date,
+        result.data.id // Pass the payment ID
       );
 
       if (!ledgerResult.success) {

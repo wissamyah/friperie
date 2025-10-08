@@ -136,6 +136,7 @@ export interface SupplierLedgerEntry {
   balance: number; // Running balance after this transaction
   description: string;
   relatedContainerId?: string; // Link to container if type is "container"
+  relatedPaymentId?: string; // Link to payment if type is "payment"
   date: string; // ISO date string
   createdAt: string;
 }

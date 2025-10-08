@@ -23,7 +23,7 @@ export default function Payments() {
   } = usePayments();
 
   const { suppliers } = useSuppliers();
-  const { createPaymentEntry } = useSupplierLedger();
+  const { createPaymentEntry, updateLedgerEntry, ledgerEntries } = useSupplierLedger();
   const { status: saveStatus } = useSaveStatusContext();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,7 +77,10 @@ export default function Payments() {
 
     try {
       if (isEditMode) {
-        // UPDATE MODE - just update the payment record
+        // UPDATE MODE - update both payment record and ledger entry
+        githubDataManager.startBatchUpdate();
+
+        // Update the payment record
         const result = await updatePayment(editingPayment.id, {
           date,
           amountEUR,
@@ -89,6 +92,25 @@ export default function Payments() {
         if (!result.success) {
           throw new Error(result.error || 'Failed to update payment');
         }
+
+        // Find and update the corresponding ledger entry
+        const ledgerEntry = ledgerEntries.find(
+          entry => entry.relatedPaymentId === editingPayment.id
+        );
+
+        if (ledgerEntry) {
+          const ledgerResult = await updateLedgerEntry(ledgerEntry.id, {
+            amount: Math.abs(amountEUR), // Ensure positive (credit)
+            description: `Payment received - ${notes || 'No notes'}`,
+            date,
+          });
+
+          if (!ledgerResult.success) {
+            throw new Error(ledgerResult.error || 'Failed to update ledger entry');
+          }
+        }
+
+        await githubDataManager.endBatchUpdate();
       } else {
         // CREATE MODE - create payment and ledger entry in a batch
         githubDataManager.startBatchUpdate();
@@ -104,7 +126,7 @@ export default function Payments() {
           notes
         );
 
-        if (!paymentResult.success) {
+        if (!paymentResult.success || !paymentResult.data) {
           throw new Error(paymentResult.error || 'Failed to create payment');
         }
 
@@ -114,7 +136,8 @@ export default function Payments() {
           supplier.name,
           amountEUR,
           `Payment received - ${notes || 'No notes'}`,
-          date
+          date,
+          paymentResult.data.id // Pass the payment ID
         );
 
         if (!ledgerResult.success) {

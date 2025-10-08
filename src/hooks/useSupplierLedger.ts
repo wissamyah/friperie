@@ -84,7 +84,8 @@ export const useSupplierLedger = () => {
       amount: number, // Negative for debits (containers), positive for credits (payments)
       description: string,
       date: string,
-      relatedContainerId?: string
+      relatedContainerId?: string,
+      relatedPaymentId?: string
     ) => {
       setActionLoading({ action: "create" });
 
@@ -99,6 +100,7 @@ export const useSupplierLedger = () => {
           balance: 0, // Temporary, will be recalculated
           description,
           relatedContainerId,
+          relatedPaymentId,
           date,
           createdAt: new Date().toISOString(),
         };
@@ -178,7 +180,8 @@ export const useSupplierLedger = () => {
       supplierName: string,
       amount: number,
       description: string,
-      date: string
+      date: string,
+      paymentId: string
     ) => {
       return createLedgerEntry(
         supplierId,
@@ -186,7 +189,9 @@ export const useSupplierLedger = () => {
         "payment",
         Math.abs(amount), // Ensure positive (credit)
         description,
-        date
+        date,
+        undefined, // relatedContainerId
+        paymentId // relatedPaymentId
       );
     },
     [createLedgerEntry]
@@ -238,6 +243,77 @@ export const useSupplierLedger = () => {
 
         await updateLedgerEntries(finalEntries);
         return { success: true };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [ledgerEntries, updateLedgerEntries]
+  );
+
+  // UPDATE ledger entry
+  const updateLedgerEntry = useCallback(
+    async (
+      id: string,
+      updates: {
+        amount?: number;
+        description?: string;
+        date?: string;
+      }
+    ) => {
+      setActionLoading({ action: "create" }); // Using "create" action type for updates
+
+      try {
+        // Find the entry being updated
+        const entryToUpdate = ledgerEntries.find(e => e.id === id);
+        if (!entryToUpdate) {
+          return { success: false, error: "Ledger entry not found" };
+        }
+
+        const supplierId = entryToUpdate.supplierId;
+
+        // Update the entry
+        const updatedEntry: SupplierLedgerEntry = {
+          ...entryToUpdate,
+          ...updates,
+        };
+
+        // Replace the old entry with updated one
+        const updatedEntries = ledgerEntries.map(e => e.id === id ? updatedEntry : e);
+
+        // Get all entries for this supplier
+        const supplierEntries = updatedEntries.filter(e => e.supplierId === supplierId);
+
+        // Sort chronologically (oldest first) by date, then by createdAt
+        const chronologicalEntries = supplierEntries.sort((a, b) => {
+          const dateA = new Date(a.date).getTime();
+          const dateB = new Date(b.date).getTime();
+          if (dateA === dateB) {
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          }
+          return dateA - dateB;
+        });
+
+        // Recalculate running balances chronologically
+        let runningBalance = 0;
+        const updatedSupplierEntries = chronologicalEntries.map(entry => {
+          runningBalance += entry.amount;
+          return {
+            ...entry,
+            balance: runningBalance
+          };
+        });
+
+        // Create final list with updated balances for this supplier
+        const otherSupplierEntries = updatedEntries.filter(e => e.supplierId !== supplierId);
+        const finalEntries = [...otherSupplierEntries, ...updatedSupplierEntries];
+
+        await updateLedgerEntries(finalEntries);
+
+        // Get the final updated entry
+        const finalUpdatedEntry = updatedSupplierEntries.find(e => e.id === id);
+        return { success: true, data: finalUpdatedEntry };
       } catch (error: any) {
         return { success: false, error: error.message };
       } finally {
@@ -319,6 +395,9 @@ export const useSupplierLedger = () => {
     createLedgerEntry,
     createContainerEntry,
     createPaymentEntry,
+
+    // Update operation
+    updateLedgerEntry,
 
     // Delete operation
     deleteLedgerEntry,
