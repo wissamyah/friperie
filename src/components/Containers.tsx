@@ -575,7 +575,17 @@ export default function Containers() {
               const currentStock = product.quantity || 0;
               const currentCost = product.costPerBagUSD || 0;
               const newStock = row.quantityBags;
-              const newCost = costPerBagUSD;
+
+              // Calculate this product's proportional cost
+              // Product's EUR percentage of total
+              const productLineTotal = row.quantityBags * row.priceEUR;
+              const productPercentage = grandTotalEUR > 0 ? productLineTotal / grandTotalEUR : 0;
+
+              // Apply percentage to total USD cost (payments + customs)
+              const productUSDCost = productPercentage * (totalUSDPaid + customsDutiesUSD);
+
+              // Calculate cost per bag for this specific product
+              const newCost = newStock > 0 ? productUSDCost / newStock : 0;
 
               const newWeightedAvgCost = calculateWeightedAverageCost(
                 currentStock,
@@ -618,8 +628,17 @@ export default function Containers() {
             if (product && storedData) {
               const { quantityAdded, stockBefore, costBefore } = storedData;
 
-              // Recalculate what the weighted average cost would be with the new container price
-              const newContainerCost = costPerBagUSD;
+              // Calculate this product's proportional cost
+              // Product's EUR percentage of total
+              const productLineTotal = row.quantityBags * row.priceEUR;
+              const productPercentage = grandTotalEUR > 0 ? productLineTotal / grandTotalEUR : 0;
+
+              // Apply percentage to total USD cost (payments + customs)
+              const productUSDCost = productPercentage * (totalUSDPaid + customsDutiesUSD);
+
+              // Calculate cost per bag for this specific product
+              const newContainerCost = quantityAdded > 0 ? productUSDCost / quantityAdded : 0;
+
               const recalculatedCost = calculateWeightedAverageCost(
                 stockBefore,
                 costBefore,
@@ -747,7 +766,17 @@ export default function Containers() {
               const currentStock = product.quantity || 0;
               const currentCost = product.costPerBagUSD || 0;
               const newStock = row.quantityBags;
-              const newCost = costPerBagUSD;
+
+              // Calculate this product's proportional cost
+              // Product's EUR percentage of total
+              const productLineTotal = row.quantityBags * row.priceEUR;
+              const productPercentage = grandTotalEUR > 0 ? productLineTotal / grandTotalEUR : 0;
+
+              // Apply percentage to total USD cost (payments + customs)
+              const productUSDCost = productPercentage * (totalUSDPaid + customsDutiesUSD);
+
+              // Calculate cost per bag for this specific product
+              const newCost = newStock > 0 ? productUSDCost / newStock : 0;
 
               const newWeightedAvgCost = calculateWeightedAverageCost(
                 currentStock,
