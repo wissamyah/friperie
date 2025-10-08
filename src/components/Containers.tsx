@@ -600,6 +600,23 @@ export default function Containers() {
             }
           } = {};
 
+          // Calculate weighted average exchange rate from payments (once, before loop)
+          let weightedExchangeRate = 1.1; // Default fallback
+          if (totalEURPaid > 0) {
+            let totalRate = 0;
+            paymentAllocations.forEach((amountEUR, paymentId) => {
+              const payment = availablePayments.find(p => p.id === paymentId);
+              if (payment) {
+                const weight = amountEUR / totalEURPaid;
+                totalRate += payment.exchangeRate * weight;
+              }
+            });
+            weightedExchangeRate = totalRate;
+          }
+
+          // Accumulate all product updates in a Map
+          const productUpdates = new Map<string, { quantity: number; costPerBagUSD: number }>();
+
           for (const row of productRows) {
             const product = products.find((p) => p.id === row.productId);
             if (product) {
@@ -607,16 +624,21 @@ export default function Containers() {
               const currentCost = product.costPerBagUSD || 0;
               const newStock = row.quantityBags;
 
-              // Calculate this product's proportional cost
-              // Product's EUR percentage of total
-              const productLineTotal = row.quantityBags * row.priceEUR;
-              const productPercentage = grandTotalEUR > 0 ? productLineTotal / grandTotalEUR : 0;
+              // Calculate this product's cost per bag
+              // 1. Line cost per bag (EUR converted to USD)
+              const lineTotal = row.quantityBags * row.priceEUR;
+              const lineCostPerBagEUR = newStock > 0 ? lineTotal / newStock : 0;
+              const lineCostPerBagUSD = lineCostPerBagEUR * weightedExchangeRate;
 
-              // Apply percentage to total USD cost (payments + customs)
-              const productUSDCost = productPercentage * (totalUSDPaid + customsDutiesUSD);
+              // 2. Freight cost per bag (EUR converted to USD, divided by total bags)
+              const freightCostPerBagEUR = totalBags > 0 ? freightCostEUR / totalBags : 0;
+              const freightCostPerBagUSD = freightCostPerBagEUR * weightedExchangeRate;
 
-              // Calculate cost per bag for this specific product
-              const newCost = newStock > 0 ? productUSDCost / newStock : 0;
+              // 3. Customs cost per bag (already in USD, divided by total bags)
+              const customsCostPerBagUSD = totalBags > 0 ? customsDutiesUSD / totalBags : 0;
+
+              // 4. Final cost per bag = line cost + freight per bag + customs per bag
+              const newCost = lineCostPerBagUSD + freightCostPerBagUSD + customsCostPerBagUSD;
 
               const newWeightedAvgCost = calculateWeightedAverageCost(
                 currentStock,
@@ -625,14 +647,11 @@ export default function Containers() {
                 newCost
               );
 
-              const productResult = await updateProduct(row.productId, {
+              // Store the update for this product
+              productUpdates.set(row.productId, {
                 quantity: currentStock + newStock,
                 costPerBagUSD: newWeightedAvgCost
               });
-
-              if (!productResult.success) {
-                throw new Error(productResult.error || `Failed to update quantity for ${product.name}`);
-              }
 
               // Track details for this product for future cost recalculation
               quantitiesAdded[row.productId] = {
@@ -641,6 +660,18 @@ export default function Containers() {
                 costBefore: currentCost,
               };
             }
+          }
+
+          // Apply all product updates at once
+          if (productUpdates.size > 0) {
+            const currentProducts = githubDataManager.getData('products');
+            const updatedProducts = currentProducts.map(product => {
+              const update = productUpdates.get(product.id);
+              return update
+                ? { ...product, ...update, updatedAt: new Date().toISOString() }
+                : product;
+            });
+            await githubDataManager.updateData('products', updatedProducts, false);
           }
 
           // Update container to record quantities added to stock
@@ -652,6 +683,23 @@ export default function Containers() {
           // without changing stock quantities
           const storedQuantities = originalContainer.quantityAddedToStock;
 
+          // Calculate weighted average exchange rate from payments (once, before loop)
+          let weightedExchangeRate = 1.1; // Default fallback
+          if (totalEURPaid > 0) {
+            let totalRate = 0;
+            paymentAllocations.forEach((amountEUR, paymentId) => {
+              const payment = availablePayments.find(p => p.id === paymentId);
+              if (payment) {
+                const weight = amountEUR / totalEURPaid;
+                totalRate += payment.exchangeRate * weight;
+              }
+            });
+            weightedExchangeRate = totalRate;
+          }
+
+          // Accumulate all product updates in a Map
+          const productUpdates = new Map<string, { costPerBagUSD: number }>();
+
           for (const row of productRows) {
             const product = products.find((p) => p.id === row.productId);
             const storedData = storedQuantities[row.productId];
@@ -659,16 +707,21 @@ export default function Containers() {
             if (product && storedData) {
               const { quantityAdded, stockBefore, costBefore } = storedData;
 
-              // Calculate this product's proportional cost
-              // Product's EUR percentage of total
-              const productLineTotal = row.quantityBags * row.priceEUR;
-              const productPercentage = grandTotalEUR > 0 ? productLineTotal / grandTotalEUR : 0;
+              // Calculate this product's cost per bag
+              // 1. Line cost per bag (EUR converted to USD)
+              const lineTotal = row.quantityBags * row.priceEUR;
+              const lineCostPerBagEUR = quantityAdded > 0 ? lineTotal / quantityAdded : 0;
+              const lineCostPerBagUSD = lineCostPerBagEUR * weightedExchangeRate;
 
-              // Apply percentage to total USD cost (payments + customs)
-              const productUSDCost = productPercentage * (totalUSDPaid + customsDutiesUSD);
+              // 2. Freight cost per bag (EUR converted to USD, divided by total bags)
+              const freightCostPerBagEUR = totalBags > 0 ? freightCostEUR / totalBags : 0;
+              const freightCostPerBagUSD = freightCostPerBagEUR * weightedExchangeRate;
 
-              // Calculate cost per bag for this specific product
-              const newContainerCost = quantityAdded > 0 ? productUSDCost / quantityAdded : 0;
+              // 3. Customs cost per bag (already in USD, divided by total bags)
+              const customsCostPerBagUSD = totalBags > 0 ? customsDutiesUSD / totalBags : 0;
+
+              // 4. Final cost per bag = line cost + freight per bag + customs per bag
+              const newContainerCost = lineCostPerBagUSD + freightCostPerBagUSD + customsCostPerBagUSD;
 
               const recalculatedCost = calculateWeightedAverageCost(
                 stockBefore,
@@ -677,15 +730,23 @@ export default function Containers() {
                 newContainerCost
               );
 
-              // Update only the cost, not the quantity
-              const productResult = await updateProduct(row.productId, {
+              // Store the update for this product (cost only, not quantity)
+              productUpdates.set(row.productId, {
                 costPerBagUSD: recalculatedCost
               });
-
-              if (!productResult.success) {
-                throw new Error(productResult.error || `Failed to update cost for ${product.name}`);
-              }
             }
+          }
+
+          // Apply all product updates at once
+          if (productUpdates.size > 0) {
+            const currentProducts = githubDataManager.getData('products');
+            const updatedProducts = currentProducts.map(product => {
+              const update = productUpdates.get(product.id);
+              return update
+                ? { ...product, ...update, updatedAt: new Date().toISOString() }
+                : product;
+            });
+            await githubDataManager.updateData('products', updatedProducts, false);
           }
         }
       } else {
@@ -791,6 +852,23 @@ export default function Containers() {
             }
           } = {};
 
+          // Calculate weighted average exchange rate from payments (once, before loop)
+          let weightedExchangeRate = 1.1; // Default fallback
+          if (totalEURPaid > 0) {
+            let totalRate = 0;
+            paymentAllocations.forEach((amountEUR, paymentId) => {
+              const payment = availablePayments.find(p => p.id === paymentId);
+              if (payment) {
+                const weight = amountEUR / totalEURPaid;
+                totalRate += payment.exchangeRate * weight;
+              }
+            });
+            weightedExchangeRate = totalRate;
+          }
+
+          // Accumulate all product updates in a Map
+          const productUpdates = new Map<string, { quantity: number; costPerBagUSD: number }>();
+
           for (const row of productRows) {
             const product = products.find((p) => p.id === row.productId);
             if (product) {
@@ -798,16 +876,21 @@ export default function Containers() {
               const currentCost = product.costPerBagUSD || 0;
               const newStock = row.quantityBags;
 
-              // Calculate this product's proportional cost
-              // Product's EUR percentage of total
-              const productLineTotal = row.quantityBags * row.priceEUR;
-              const productPercentage = grandTotalEUR > 0 ? productLineTotal / grandTotalEUR : 0;
+              // Calculate this product's cost per bag
+              // 1. Line cost per bag (EUR converted to USD)
+              const lineTotal = row.quantityBags * row.priceEUR;
+              const lineCostPerBagEUR = newStock > 0 ? lineTotal / newStock : 0;
+              const lineCostPerBagUSD = lineCostPerBagEUR * weightedExchangeRate;
 
-              // Apply percentage to total USD cost (payments + customs)
-              const productUSDCost = productPercentage * (totalUSDPaid + customsDutiesUSD);
+              // 2. Freight cost per bag (EUR converted to USD, divided by total bags)
+              const freightCostPerBagEUR = totalBags > 0 ? freightCostEUR / totalBags : 0;
+              const freightCostPerBagUSD = freightCostPerBagEUR * weightedExchangeRate;
 
-              // Calculate cost per bag for this specific product
-              const newCost = newStock > 0 ? productUSDCost / newStock : 0;
+              // 3. Customs cost per bag (already in USD, divided by total bags)
+              const customsCostPerBagUSD = totalBags > 0 ? customsDutiesUSD / totalBags : 0;
+
+              // 4. Final cost per bag = line cost + freight per bag + customs per bag
+              const newCost = lineCostPerBagUSD + freightCostPerBagUSD + customsCostPerBagUSD;
 
               const newWeightedAvgCost = calculateWeightedAverageCost(
                 currentStock,
@@ -816,14 +899,11 @@ export default function Containers() {
                 newCost
               );
 
-              const productResult = await updateProduct(row.productId, {
+              // Store the update for this product
+              productUpdates.set(row.productId, {
                 quantity: currentStock + newStock,
                 costPerBagUSD: newWeightedAvgCost
               });
-
-              if (!productResult.success) {
-                throw new Error(productResult.error || `Failed to update quantity for ${product.name}`);
-              }
 
               // Track details for this product for future cost recalculation
               quantitiesAdded[row.productId] = {
@@ -832,6 +912,18 @@ export default function Containers() {
                 costBefore: currentCost,
               };
             }
+          }
+
+          // Apply all product updates at once
+          if (productUpdates.size > 0) {
+            const currentProducts = githubDataManager.getData('products');
+            const updatedProducts = currentProducts.map(product => {
+              const update = productUpdates.get(product.id);
+              return update
+                ? { ...product, ...update, updatedAt: new Date().toISOString() }
+                : product;
+            });
+            await githubDataManager.updateData('products', updatedProducts, false);
           }
 
           // Update container to record quantities added to stock
@@ -872,6 +964,30 @@ export default function Containers() {
 
       // STEP 1: Revert product stock and costs (if container was closed)
       if (container.containerStatus === 'closed' && container.quantityAddedToStock) {
+        // Calculate total bags for the container
+        const totalBags = container.products.reduce((sum, p) => sum + p.quantityBags, 0);
+
+        // Calculate weighted average exchange rate from container's payments
+        let weightedExchangeRate = 1.1; // Default fallback
+        if (container.totalEURPaid > 0 && container.paymentAllocations && container.paymentAllocations.length > 0) {
+          // Get all payments for this container
+          const containerPayments = payments.filter(p =>
+            p.allocations.some(alloc => alloc.containerId === container.id)
+          );
+
+          if (containerPayments.length > 0) {
+            let totalRate = 0;
+            containerPayments.forEach(payment => {
+              const allocation = payment.allocations.find(alloc => alloc.containerId === container.id);
+              if (allocation) {
+                const weight = allocation.amountEUR / container.totalEURPaid;
+                totalRate += payment.exchangeRate * weight;
+              }
+            });
+            weightedExchangeRate = totalRate;
+          }
+        }
+
         for (const [productId, stockData] of Object.entries(container.quantityAddedToStock)) {
           const product = products.find(p => p.id === productId);
           if (product) {
@@ -881,13 +997,21 @@ export default function Containers() {
             const productRow = container.products.find(p => p.productId === productId);
             if (!productRow) continue;
 
-            // Calculate this product's proportional cost from the container
-            const productLineTotal = productRow.quantityBags * productRow.priceEUR;
-            const productPercentage = container.grandTotalEUR > 0
-              ? productLineTotal / container.grandTotalEUR
-              : 0;
-            const productUSDCost = productPercentage * (container.totalUSDPaid + container.customsDutiesUSD);
-            const containerCostPerBag = quantityAdded > 0 ? productUSDCost / quantityAdded : 0;
+            // Calculate this product's cost per bag using the correct formula
+            // 1. Line cost per bag (EUR converted to USD)
+            const lineTotal = productRow.quantityBags * productRow.priceEUR;
+            const lineCostPerBagEUR = quantityAdded > 0 ? lineTotal / quantityAdded : 0;
+            const lineCostPerBagUSD = lineCostPerBagEUR * weightedExchangeRate;
+
+            // 2. Freight cost per bag (EUR converted to USD, divided by total bags)
+            const freightCostPerBagEUR = totalBags > 0 ? container.freightCostEUR / totalBags : 0;
+            const freightCostPerBagUSD = freightCostPerBagEUR * weightedExchangeRate;
+
+            // 3. Customs cost per bag (already in USD, divided by total bags)
+            const customsCostPerBagUSD = totalBags > 0 ? container.customsDutiesUSD / totalBags : 0;
+
+            // 4. Final cost per bag that was added
+            const containerCostPerBag = lineCostPerBagUSD + freightCostPerBagUSD + customsCostPerBagUSD;
 
             // Calculate new cost by reversing the weighted average
             const newCost = calculateReverseWeightedAverageCost(
