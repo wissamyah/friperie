@@ -1,9 +1,8 @@
-import { Receipt, TrendingDown, PieChart as PieChartIcon, DollarSign } from 'lucide-react';
+import { Receipt, TrendingDown, Layers, DollarSign } from 'lucide-react';
 import { useReports, DateRange } from '../../hooks/useReports';
 import ReportCard from './ReportCard';
-import ChartCard from './ChartCard';
 import EmptyState from './EmptyState';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { formatDate } from '../../utils/dateFormatter';
 
 interface ExpensesReportProps {
   dateRange?: DateRange | null;
@@ -18,12 +17,6 @@ export default function ExpensesReport({ dateRange }: ExpensesReportProps) {
   const averageExpense = totalExpenses > 0 ? metrics.totalExpenses / totalExpenses : 0;
 
   const COLORS = ['#4a90e2', '#00d9ff', '#4ade80', '#facc15', '#ef4444', '#8b5cf6', '#ec4899', '#f97316'];
-
-  const pieData = expenseCategories.map((cat, index) => ({
-    name: cat.category,
-    value: cat.amount,
-    color: COLORS[index % COLORS.length],
-  }));
 
   if (!hasData) {
     return (
@@ -74,91 +67,81 @@ export default function ExpensesReport({ dateRange }: ExpensesReportProps) {
         <ReportCard
           title="Categories"
           value={expenseCategories.length}
-          icon={PieChartIcon}
+          icon={Layers}
           subtitle="Expense categories"
           colorScheme="primary"
         />
       </div>
 
-      {/* Category Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard
-          title="Expenses by Category"
-          description="Distribution of expenses across categories"
-          height={300}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#0f1419',
-                  border: '1px solid #4a90e2',
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
+      {/* Category Breakdown Table */}
+      <div
+        className="backdrop-blur-sm rounded-lg border shadow-card"
+        style={{
+          backgroundColor: '#1a2129',
+          borderColor: '#2d3748',
+          borderWidth: '1px',
+        }}
+      >
+        <div className="px-4 py-3 border-b" style={{ borderColor: '#2d3748' }}>
+          <h3 className="text-base font-semibold text-creed-text-bright">Category Breakdown</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b" style={{ borderColor: '#2d3748' }}>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-creed-muted uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-creed-muted uppercase tracking-wider">
+                  Transactions
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-creed-muted uppercase tracking-wider">
+                  Total Amount
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-creed-muted uppercase tracking-wider">
+                  Avg/Transaction
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-creed-muted uppercase tracking-wider">
+                  % of Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenseCategories.map((category, index) => {
+                const avgPerTransaction = category.count > 0 ? category.amount / category.count : 0;
 
-        {/* Category Table */}
-        <div
-          className="backdrop-blur-sm rounded-lg border shadow-card"
-          style={{
-            backgroundColor: '#1a2129',
-            borderColor: '#2d3748',
-            borderWidth: '1px',
-          }}
-        >
-          <div className="px-4 py-3 border-b" style={{ borderColor: '#2d3748' }}>
-            <h3 className="text-base font-semibold text-creed-text-bright">Category Breakdown</h3>
-          </div>
-          <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
-            {expenseCategories.map((category, index) => (
-              <div
-                key={category.category}
-                className="p-3 rounded-lg border"
-                style={{
-                  backgroundColor: '#151a21',
-                  borderColor: '#2d3748',
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <span className="text-sm font-medium text-creed-text">
-                      {category.category}
-                    </span>
-                  </div>
-                  <span className="text-sm font-bold text-creed-danger">
-                    ${category.amount.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-creed-muted">
-                  <span>{category.count} transaction{category.count !== 1 ? 's' : ''}</span>
-                  <span>{category.percentage.toFixed(1)}% of total</span>
-                </div>
-              </div>
-            ))}
-          </div>
+                return (
+                  <tr
+                    key={category.category}
+                    className="border-b hover:bg-creed-primary/5 transition-colors"
+                    style={{ borderColor: '#2d3748' }}
+                  >
+                    <td className="px-4 py-3 text-sm font-medium text-creed-text">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        />
+                        {category.category}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-creed-text text-right">
+                      {category.count}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-bold text-creed-danger text-right">
+                      ${category.amount.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-creed-text text-right">
+                      ${avgPerTransaction.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-creed-primary text-right font-medium">
+                      {category.percentage.toFixed(1)}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -200,7 +183,7 @@ export default function ExpensesReport({ dateRange }: ExpensesReportProps) {
                   style={{ borderColor: '#2d3748' }}
                 >
                   <td className="px-4 py-3 text-sm text-creed-text">
-                    {new Date(expense.date).toLocaleDateString()}
+                    {formatDate(expense.date)}
                   </td>
                   <td className="px-4 py-3 text-sm text-creed-text">
                     <span

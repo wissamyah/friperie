@@ -1,6 +1,7 @@
 import { Wallet, TrendingUp, TrendingDown, ShoppingCart, Receipt, FileText, Calendar, DollarSign } from 'lucide-react';
 import { useCashSituation } from '../hooks/useCashSituation';
 import PageLoader from './PageLoader';
+import { formatDate } from '../utils/dateFormatter';
 
 export default function CashSituation() {
   const {
@@ -202,11 +203,7 @@ export default function CashSituation() {
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-creed-muted" />
                         <span className="text-xs text-creed-text">
-                          {new Date(transaction.date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
+                          {formatDate(transaction.date)}
                         </span>
                       </div>
                     </td>

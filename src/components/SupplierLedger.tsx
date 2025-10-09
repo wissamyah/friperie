@@ -3,6 +3,7 @@ import { BookOpen, TrendingUp, TrendingDown, FileText, Calendar, User } from 'lu
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useSupplierLedger } from '../hooks/useSupplierLedger';
 import PageLoader from './PageLoader';
+import { formatDate } from '../utils/dateFormatter';
 
 interface SupplierLedgerProps {
   preselectedSupplierId?: string | null;
@@ -57,11 +58,14 @@ export default function SupplierLedger({ preselectedSupplierId }: SupplierLedger
       };
     });
 
-    // Now sort by createdAt descending for display (newest first)
+    // Now sort by date descending for display (newest first), using createdAt as tiebreaker
     return entriesWithCorrectBalance.sort((a, b) => {
-      const timeA = new Date(a.createdAt).getTime();
-      const timeB = new Date(b.createdAt).getTime();
-      return timeB - timeA;
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA === dateB) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      return dateB - dateA;
     });
   }, [selectedSupplierId, ledgerEntries, getLedgerEntriesBySupplierId]);
 
@@ -395,11 +399,7 @@ export default function SupplierLedger({ preselectedSupplierId }: SupplierLedger
                           <div className="flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-creed-muted" />
                             <span className="text-xs text-creed-text">
-                              {new Date(entry.date).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              })}
+                              {formatDate(entry.date)}
                             </span>
                           </div>
                         </td>

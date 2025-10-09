@@ -1,16 +1,14 @@
 import { ShoppingCart, TrendingUp, Package, DollarSign } from 'lucide-react';
 import { useReports, DateRange } from '../../hooks/useReports';
 import ReportCard from './ReportCard';
-import ChartCard from './ChartCard';
 import EmptyState from './EmptyState';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 interface SalesReportProps {
   dateRange?: DateRange | null;
 }
 
 export default function SalesReport({ dateRange }: SalesReportProps) {
-  const { metrics, productPerformance, dailyTrends, filteredSales } = useReports(dateRange || undefined);
+  const { metrics, productPerformance, filteredSales } = useReports(dateRange || undefined);
 
   const hasData = filteredSales.length > 0;
 
@@ -18,9 +16,6 @@ export default function SalesReport({ dateRange }: SalesReportProps) {
   const totalSales = filteredSales.length;
   const averageTransactionValue = totalSales > 0 ? metrics.totalRevenue / totalSales : 0;
   const totalQuantitySold = productPerformance.reduce((sum, p) => sum + p.quantitySold, 0);
-
-  // Top performing products (top 10)
-  const topProducts = productPerformance.slice(0, 10);
 
   if (!hasData) {
     return (
@@ -108,32 +103,44 @@ export default function SalesReport({ dateRange }: SalesReportProps) {
                 <th className="px-4 py-3 text-right text-xs font-semibold text-creed-muted uppercase tracking-wider">
                   Total Revenue
                 </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-creed-muted uppercase tracking-wider">
+                  % of Total
+                </th>
               </tr>
             </thead>
             <tbody>
-              {productPerformance.map((product, index) => (
-                <tr
-                  key={product.productId}
-                  className="border-b hover:bg-creed-primary/5 transition-colors"
-                  style={{ borderColor: '#2d3748' }}
-                >
-                  <td className="px-4 py-3 text-sm text-creed-text">
-                    #{index + 1}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium text-creed-text">
-                    {product.productName}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-creed-text text-right">
-                    {product.quantitySold} bags
-                  </td>
-                  <td className="px-4 py-3 text-sm text-creed-text text-right">
-                    ${product.averagePrice.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-creed-success text-right">
-                    ${product.totalRevenue.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
+              {productPerformance.map((product, index) => {
+                const percentOfTotal = metrics.totalRevenue > 0
+                  ? (product.totalRevenue / metrics.totalRevenue) * 100
+                  : 0;
+
+                return (
+                  <tr
+                    key={product.productId}
+                    className="border-b hover:bg-creed-primary/5 transition-colors"
+                    style={{ borderColor: '#2d3748' }}
+                  >
+                    <td className="px-4 py-3 text-sm text-creed-text">
+                      #{index + 1}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-creed-text">
+                      {product.productName}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-creed-text text-right">
+                      {product.quantitySold} bags
+                    </td>
+                    <td className="px-4 py-3 text-sm text-creed-text text-right">
+                      ${product.averagePrice.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-bold text-creed-success text-right">
+                      ${product.totalRevenue.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-creed-primary text-right font-medium">
+                      {percentOfTotal.toFixed(1)}%
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

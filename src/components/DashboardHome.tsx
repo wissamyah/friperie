@@ -20,6 +20,7 @@ import { useDataContext } from '../contexts/DataContext';
 import { useCashSituation } from '../hooks/useCashSituation';
 import ReportCard from './reports/ReportCard';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { formatDate, formatDateLong, formatDateShort } from '../utils/dateFormatter';
 
 export default function DashboardHome() {
   const { todayMetrics, weeklyMetrics, monthlyMetrics, dailyTrends, productPerformance } = useReports();
@@ -72,7 +73,7 @@ export default function DashboardHome() {
 
   // Last 7 days trend data
   const last7Days = dailyTrends.slice(-7).map(d => ({
-    date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    date: formatDateShort(d.date),
     revenue: d.revenue,
     expenses: d.expenses,
   }));
@@ -98,7 +99,7 @@ export default function DashboardHome() {
       <div>
         <h1 className="text-2xl font-bold text-creed-text-bright mb-1">Dashboard</h1>
         <p className="text-creed-muted">
-          Welcome back! Here's your business overview for {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          Welcome back! Here's your business overview for {formatDateLong(new Date())}
         </p>
       </div>
 
@@ -420,7 +421,7 @@ export default function DashboardHome() {
                       {txn.type === 'sale' ? 'Sale' : (txn as any).category}
                     </p>
                     <p className="text-[10px] text-creed-muted">
-                      {new Date(txn.date).toLocaleDateString()}
+                      {formatDate(txn.date)}
                     </p>
                   </div>
                   <span className={`text-xs font-semibold ${txn.type === 'sale' ? 'text-creed-success' : 'text-creed-danger'}`}>

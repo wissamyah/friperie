@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useGitHubData } from "./useGitHubData";
 import { SupplierLedgerEntry, LedgerEntryType } from "../services/github/types";
+import { githubDataManager } from "../services/githubDataManager";
 
 export const useSupplierLedger = () => {
   const {
@@ -265,22 +266,28 @@ export const useSupplierLedger = () => {
       setActionLoading({ action: "create" }); // Using "create" action type for updates
 
       try {
+        // Get the LATEST ledger entries from githubDataManager to avoid stale data issues
+        const latestLedgerEntries = githubDataManager.getData('supplierLedger') as SupplierLedgerEntry[] || ledgerEntries;
+
+        console.log(`📝 [updateLedgerEntry] Updating entry ${id}, using ${latestLedgerEntries.length} latest entries`);
+
         // Find the entry being updated
-        const entryToUpdate = ledgerEntries.find(e => e.id === id);
+        const entryToUpdate = latestLedgerEntries.find(e => e.id === id);
         if (!entryToUpdate) {
           return { success: false, error: "Ledger entry not found" };
         }
 
         const supplierId = entryToUpdate.supplierId;
 
-        // Update the entry
+        // Update the entry (balance will be recalculated below)
         const updatedEntry: SupplierLedgerEntry = {
           ...entryToUpdate,
           ...updates,
+          balance: 0, // Reset balance, will be recalculated chronologically
         };
 
         // Replace the old entry with updated one
-        const updatedEntries = ledgerEntries.map(e => e.id === id ? updatedEntry : e);
+        const updatedEntries = latestLedgerEntries.map(e => e.id === id ? updatedEntry : e);
 
         // Get all entries for this supplier
         const supplierEntries = updatedEntries.filter(e => e.supplierId === supplierId);
@@ -309,10 +316,13 @@ export const useSupplierLedger = () => {
         const otherSupplierEntries = updatedEntries.filter(e => e.supplierId !== supplierId);
         const finalEntries = [...otherSupplierEntries, ...updatedSupplierEntries];
 
+        console.log(`📝 [updateLedgerEntry] Recalculated balances for supplier ${supplierId}, saving ${finalEntries.length} entries`);
+
         await updateLedgerEntries(finalEntries);
 
         // Get the final updated entry
         const finalUpdatedEntry = updatedSupplierEntries.find(e => e.id === id);
+        console.log(`✅ [updateLedgerEntry] Updated entry balance: ${finalUpdatedEntry?.balance}`);
         return { success: true, data: finalUpdatedEntry };
       } catch (error: any) {
         return { success: false, error: error.message };

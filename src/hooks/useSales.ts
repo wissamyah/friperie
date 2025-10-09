@@ -17,7 +17,16 @@ export function useSales() {
   const [actionLoading, setActionLoading] = useState<ActionLoading | null>(null);
 
   useEffect(() => {
-    setSales(data.sales || []);
+    // Sort sales by date (newest first), then by createdAt for same-day sales
+    const sortedSales = [...(data.sales || [])].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA === dateB) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      return dateB - dateA;
+    });
+    setSales(sortedSales);
     setProducts(data.products || []);
     setLoading(false);
   }, [data.sales, data.products, refreshKey]);
@@ -54,6 +63,29 @@ export function useSales() {
     });
 
     return transactionsBeforeThis.reduce((sum, t) => sum + t.amount, 0) + amount;
+  }, []);
+
+  // Recalculate all cash transaction balances chronologically
+  const recalculateAllCashBalances = useCallback((transactions: CashTransaction[]): CashTransaction[] => {
+    // Sort chronologically (oldest first) by date, then by createdAt
+    const chronological = [...transactions].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA === dateB) {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return dateA - dateB;
+    });
+
+    // Recalculate running balances
+    let runningBalance = 0;
+    return chronological.map(transaction => {
+      runningBalance += transaction.amount;
+      return {
+        ...transaction,
+        balance: runningBalance
+      };
+    });
   }, []);
 
   const createSale = useCallback(
@@ -194,20 +226,22 @@ export function useSales() {
           updatedAt: timestamp,
         };
 
-        // Update cash transaction with recalculated balance
+        // Update cash transaction
         const updatedCashTransaction: CashTransaction = {
           ...relatedTransaction,
           date,
           amount: totalAmountUSD,
-          balance: calculateBalanceForUpdate(
-            totalAmountUSD,
-            date,
-            relatedTransaction.createdAt,
-            relatedTransaction.id,
-            currentCashTransactions
-          ),
+          balance: 0, // Will be recalculated below
           description: `Sale: ${productNames}`,
         };
+
+        // Replace the old transaction with the updated one
+        const transactionsWithUpdate = currentCashTransactions.map((t) =>
+          t.id === relatedTransaction.id ? updatedCashTransaction : t
+        );
+
+        // Recalculate ALL cash transaction balances to ensure consistency
+        const recalculatedTransactions = recalculateAllCashBalances(transactionsWithUpdate);
 
         // Update products
         const updatedProducts = currentProducts.map((product) => {
@@ -226,9 +260,7 @@ export function useSales() {
         githubDataManager.startBatchUpdate();
         await githubDataManager.updateData('sales', currentSales.map((s) => s.id === saleId ? updatedSale : s));
         await githubDataManager.updateData('products', updatedProducts);
-        await githubDataManager.updateData('cashTransactions',
-          currentCashTransactions.map((t) => t.id === relatedTransaction.id ? updatedCashTransaction : t)
-        );
+        await githubDataManager.updateData('cashTransactions', recalculatedTransactions);
         await githubDataManager.endBatchUpdate();
 
         return { success: true, data: updatedSale };
@@ -240,7 +272,7 @@ export function useSales() {
         setActionLoading(null);
       }
     },
-    [calculateBalanceForUpdate]
+    [recalculateAllCashBalances]
   );
 
   const deleteSale = useCallback(

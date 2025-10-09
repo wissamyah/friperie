@@ -1,15 +1,12 @@
 import { useState } from 'react';
-import { BarChart3, FileText, Calendar, CalendarDays, ShoppingCart, Receipt } from 'lucide-react';
-import DailyReport from './reports/DailyReport';
-import WeeklyReport from './reports/WeeklyReport';
-import MonthlyReport from './reports/MonthlyReport';
+import { FileText, ShoppingCart, Receipt } from 'lucide-react';
 import ProfitLossReport from './reports/ProfitLossReport';
 import SalesReport from './reports/SalesReport';
 import ExpensesReport from './reports/ExpensesReport';
 import DateRangeSelector from './reports/DateRangeSelector';
 import { DateRange } from '../hooks/useReports';
 
-type ReportType = 'daily' | 'weekly' | 'monthly' | 'profitLoss' | 'sales' | 'expenses';
+type ReportType = 'sales' | 'expenses' | 'profitLoss';
 
 interface TabConfig {
   id: ReportType;
@@ -18,26 +15,17 @@ interface TabConfig {
 }
 
 const tabs: TabConfig[] = [
-  { id: 'daily', label: 'Daily', icon: Calendar },
-  { id: 'weekly', label: 'Weekly', icon: BarChart3 },
-  { id: 'monthly', label: 'Monthly', icon: CalendarDays },
-  { id: 'profitLoss', label: 'P&L', icon: FileText },
   { id: 'sales', label: 'Sales', icon: ShoppingCart },
   { id: 'expenses', label: 'Expenses', icon: Receipt },
+  { id: 'profitLoss', label: 'P&L', icon: FileText },
 ];
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState<ReportType>('daily');
+  const [activeTab, setActiveTab] = useState<ReportType>('sales');
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
 
   const renderReport = () => {
     switch (activeTab) {
-      case 'daily':
-        return <DailyReport dateRange={dateRange} />;
-      case 'weekly':
-        return <WeeklyReport dateRange={dateRange} />;
-      case 'monthly':
-        return <MonthlyReport dateRange={dateRange} />;
       case 'profitLoss':
         return <ProfitLossReport dateRange={dateRange} />;
       case 'sales':
@@ -45,7 +33,7 @@ export default function Reports() {
       case 'expenses':
         return <ExpensesReport dateRange={dateRange} />;
       default:
-        return <DailyReport dateRange={dateRange} />;
+        return <SalesReport dateRange={dateRange} />;
     }
   };
 

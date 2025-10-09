@@ -9,6 +9,7 @@ import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
 import Spinner from './Spinner';
 import PageLoader from './PageLoader';
+import { formatDate } from '../utils/dateFormatter';
 
 export default function Payments() {
   const {
@@ -77,8 +78,8 @@ export default function Payments() {
 
     try {
       if (isEditMode) {
-        // UPDATE MODE - update both payment record and ledger entry
-        githubDataManager.startBatchUpdate();
+        // UPDATE MODE - update payment record first, then ledger entry separately
+        // to avoid stale data issues during batch updates
 
         // Update the payment record
         const result = await updatePayment(editingPayment.id, {
@@ -93,7 +94,7 @@ export default function Payments() {
           throw new Error(result.error || 'Failed to update payment');
         }
 
-        // Find and update the corresponding ledger entry
+        // Find and update the corresponding ledger entry AFTER payment update completes
         const ledgerEntry = ledgerEntries.find(
           entry => entry.relatedPaymentId === editingPayment.id
         );
@@ -109,8 +110,6 @@ export default function Payments() {
             throw new Error(ledgerResult.error || 'Failed to update ledger entry');
           }
         }
-
-        await githubDataManager.endBatchUpdate();
       } else {
         // CREATE MODE - create payment and ledger entry in a batch
         githubDataManager.startBatchUpdate();
@@ -212,7 +211,7 @@ export default function Payments() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-creed-primary hover:opacity-90 transition-all shadow-button-3d disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-5 h-5" />
-          Add Payment
+          <span className="hidden md:inline">Add Payment</span>
         </button>
       </div>
 
@@ -260,7 +259,7 @@ export default function Payments() {
                     }}
                   >
                     <td className="px-4 py-2 text-creed-muted text-xs">
-                      {new Date(payment.date).toLocaleDateString()}
+                      {formatDate(payment.date)}
                     </td>
                     <td className="px-4 py-2 text-creed-text text-sm">{payment.supplierName}</td>
                     <td className="px-4 py-2 text-right">
@@ -334,7 +333,7 @@ export default function Payments() {
         title={isEditMode ? 'Edit Payment' : 'Add New Payment'}
       >
         <form onSubmit={handleSubmitPayment} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-creed-text mb-2">
                 Supplier <span className="text-creed-danger">*</span>
@@ -402,7 +401,7 @@ export default function Payments() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-creed-text mb-2">
                 Exchange Rate (USD/EUR) <span className="text-creed-danger">*</span>
@@ -486,11 +485,11 @@ export default function Payments() {
             />
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 pt-2">
             <button
               type="submit"
               disabled={!supplierId || !date || !amountEUR || !exchangeRate || isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-white bg-creed-primary hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-button-3d"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-lg font-semibold text-white bg-creed-primary hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-button-3d active:scale-95"
             >
               {isActionLoading(isEditMode ? 'update' : 'create') ? (
                 <>
@@ -508,7 +507,7 @@ export default function Payments() {
                 resetForm();
               }}
               disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
-              className="px-4 py-2 rounded-lg font-semibold text-creed-text hover:bg-creed-primary/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2.5 md:py-2 rounded-lg font-semibold text-creed-text hover:bg-creed-primary/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
             >
               Cancel
             </button>

@@ -5,6 +5,7 @@ import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import ConfirmModal from './ConfirmModal';
 import Spinner from './Spinner';
 import PageLoader from './PageLoader';
+import { formatDate } from '../utils/dateFormatter';
 
 // Category configuration with icons and colors
 const categoryConfig = {
@@ -174,7 +175,7 @@ export default function Expenses() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-creed-primary hover:opacity-90 transition-all shadow-button-3d disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-5 h-5" />
-          Add Expense
+          <span className="hidden md:inline">Add Expense</span>
         </button>
       </div>
 
@@ -234,11 +235,7 @@ export default function Expenses() {
                           <div className="flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-creed-muted" />
                             <span className="text-xs text-creed-text">
-                              {new Date(expense.date).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              })}
+                              {formatDate(expense.date)}
                             </span>
                           </div>
                         </td>

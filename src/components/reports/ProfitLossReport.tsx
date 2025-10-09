@@ -1,9 +1,7 @@
 import { FileText, DollarSign, Package, Receipt, TrendingUp } from 'lucide-react';
 import { useReports, DateRange } from '../../hooks/useReports';
 import ReportCard from './ReportCard';
-import ChartCard from './ChartCard';
 import EmptyState from './EmptyState';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 interface ProfitLossReportProps {
   dateRange?: DateRange | null;
@@ -13,15 +11,6 @@ export default function ProfitLossReport({ dateRange }: ProfitLossReportProps) {
   const { profitLoss, metrics } = useReports(dateRange || undefined);
 
   const hasData = metrics.totalRevenue > 0 || metrics.totalExpenses > 0;
-
-  // P&L Statement Data
-  const plData = [
-    { label: 'Revenue', value: profitLoss.revenue, color: '#4ade80' },
-    { label: 'COGS', value: -profitLoss.cogs, color: '#ef4444' },
-    { label: 'Gross Profit', value: profitLoss.grossProfit, color: '#00d9ff' },
-    { label: 'Operating Expenses', value: -profitLoss.operatingExpenses, color: '#facc15' },
-    { label: 'Net Profit', value: profitLoss.netProfit, color: profitLoss.netProfit >= 0 ? '#4ade80' : '#ef4444' },
-  ];
 
   if (!hasData) {
     return (

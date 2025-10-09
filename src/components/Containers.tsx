@@ -13,6 +13,7 @@ import ConfirmModal from './ConfirmModal';
 import Spinner from './Spinner';
 import PageLoader from './PageLoader';
 import Tooltip from './Tooltip';
+import { formatDate } from '../utils/dateFormatter';
 
 interface ProductRow {
   id: string;
@@ -1147,7 +1148,7 @@ export default function Containers() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-creed-primary hover:opacity-90 transition-all shadow-button-3d disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-5 h-5" />
-          Add Container
+          <span className="hidden md:inline">Add Container</span>
         </button>
       </div>
 
@@ -1196,7 +1197,7 @@ export default function Containers() {
                   >
                     <td className="px-4 py-2 text-creed-text text-sm">{container.containerNumber}</td>
                     <td className="px-4 py-2 text-creed-muted text-xs">
-                      {new Date(container.date).toLocaleDateString()}
+                      {formatDate(container.date)}
                     </td>
                     <td className="px-4 py-2 text-creed-text text-sm">{container.supplierName}</td>
                     <td className="px-4 py-2">
@@ -1302,9 +1303,9 @@ export default function Containers() {
           />
 
           {/* Modal */}
-          <div className="flex min-h-screen items-center justify-center p-4">
+          <div className="flex min-h-screen md:items-center justify-center p-0 md:p-4">
             <div
-              className="relative w-full max-w-5xl rounded-xl border shadow-2xl"
+              className="relative w-full flex flex-col md:min-h-0 md:max-w-5xl rounded-lg md:rounded-xl border shadow-2xl my-auto md:my-0 mx-3 md:mx-0"
               style={{
                 backgroundColor: '#151a21',
                 borderColor: '#2d3748',
@@ -1313,12 +1314,12 @@ export default function Containers() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: '#2d3748' }}>
+              <div className="flex items-center justify-between px-3 md:px-5 py-3 md:py-3.5 border-b" style={{ borderColor: '#2d3748' }}>
                 <div>
-                  <h2 className="text-lg font-semibold text-creed-text-bright">
+                  <h2 className="text-base md:text-lg font-semibold text-creed-text-bright">
                     {isEditMode ? 'Edit Container' : 'New Container'}
                   </h2>
-                  <p className="text-xs text-creed-muted mt-0.5">
+                  <p className="text-[10px] md:text-xs text-creed-muted mt-0.5">
                     {isEditMode ? 'Update shipment details' : 'Fill in shipment details'}
                   </p>
                 </div>
@@ -1336,7 +1337,7 @@ export default function Containers() {
               </div>
 
               {/* Content */}
-              <form onSubmit={handleSubmit} className="p-5 space-y-5 max-h-[calc(100vh-180px)] overflow-y-auto">
+              <form onSubmit={handleSubmit} className="flex-1 p-3 md:p-5 space-y-3 md:space-y-5 overflow-y-auto md:max-h-[calc(100vh-180px)]">
                 {/* Section: Basic Information */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 mb-2">
@@ -1344,7 +1345,7 @@ export default function Containers() {
                     <h3 className="text-xs font-semibold text-creed-text uppercase tracking-wide">Basic Information</h3>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-creed-muted mb-1.5">
                         Date <span className="text-creed-danger">*</span>
@@ -1560,7 +1561,7 @@ export default function Containers() {
                     <h3 className="text-xs font-semibold text-creed-text uppercase tracking-wide">Additional Costs</h3>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-creed-muted mb-1.5">
                         Freight Cost (€) <span className="text-creed-danger">*</span>
@@ -1659,7 +1660,7 @@ export default function Containers() {
                                 <div className="flex-1 space-y-2">
                                   <div className="flex items-center justify-between">
                                     <span className="text-xs font-medium text-creed-text">
-                                      {new Date(payment.date).toLocaleDateString()}
+                                      {formatDate(payment.date)}
                                     </span>
                                     <span className="text-[10px] text-creed-muted">
                                       Available: €{availableAmount.toFixed(2)}
@@ -1724,7 +1725,7 @@ export default function Containers() {
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2">
                                         <span className="text-xs font-medium text-creed-text">
-                                          {new Date(payment.date).toLocaleDateString()}
+                                          {formatDate(payment.date)}
                                         </span>
                                         <span className="text-xs text-creed-text">
                                           €{availableAmount.toFixed(2)}
@@ -1755,7 +1756,7 @@ export default function Containers() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-3 pt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
                       <div className="p-2.5 rounded-md border" style={{
                         backgroundColor: '#0d1117',
                         borderColor: '#2d3748',
@@ -1801,7 +1802,7 @@ export default function Containers() {
                     <h3 className="text-xs font-semibold text-creed-text uppercase tracking-wide">Summary</h3>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="p-2.5 rounded-md border" style={{
                       backgroundColor: '#0d1117',
                       borderColor: '#2d3748',
@@ -1851,11 +1852,11 @@ export default function Containers() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-3 border-t" style={{ borderColor: '#2d3748' }}>
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 pt-3 border-t" style={{ borderColor: '#2d3748' }}>
                   <button
                     type="submit"
                     disabled={!isFormValid() || isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold text-sm text-white bg-creed-primary hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-md font-semibold text-sm text-white bg-creed-primary hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                   >
                     {isActionLoading(isEditMode ? 'update' : 'create') ? (
                       <>
@@ -1876,7 +1877,7 @@ export default function Containers() {
                       resetForm();
                     }}
                     disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
-                    className="px-4 py-2 rounded-md font-semibold text-sm text-creed-muted hover:text-creed-text hover:bg-creed-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2.5 md:py-2 rounded-md font-semibold text-sm text-creed-muted hover:text-creed-text hover:bg-creed-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                   >
                     Cancel
                   </button>

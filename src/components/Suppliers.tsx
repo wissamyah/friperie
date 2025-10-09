@@ -155,7 +155,7 @@ export default function Suppliers({ onNavigateToLedger }: SuppliersProps) {
           className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-creed-primary hover:opacity-90 transition-all shadow-button-3d disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-5 h-5" />
-          Add Supplier
+          <span className="hidden md:inline">Add Supplier</span>
         </button>
       </div>
 

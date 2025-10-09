@@ -9,6 +9,7 @@ import ConfirmModal from './ConfirmModal';
 import Spinner from './Spinner';
 import PageLoader from './PageLoader';
 import Tooltip from './Tooltip';
+import { formatDate } from '../utils/dateFormatter';
 
 interface ProductRow {
   id: string;
@@ -235,7 +236,7 @@ export default function Sales() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-creed-primary hover:opacity-90 transition-all shadow-button-3d disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-5 h-5" />
-          Add Sale
+          <span className="hidden md:inline">Add Sale</span>
         </button>
       </div>
 
@@ -285,7 +286,7 @@ export default function Sales() {
                     }}
                   >
                     <td className="px-4 py-2 text-creed-muted text-xs">
-                      {new Date(sale.date).toLocaleDateString()}
+                      {formatDate(sale.date)}
                     </td>
                     <td className="px-4 py-2">
                       <Tooltip
@@ -379,9 +380,9 @@ export default function Sales() {
           />
 
           {/* Modal */}
-          <div className="flex min-h-screen items-center justify-center p-4">
+          <div className="flex min-h-screen md:items-center justify-center p-0 md:p-4">
             <div
-              className="relative w-full max-w-4xl rounded-xl border shadow-2xl"
+              className="relative w-full flex flex-col md:min-h-0 md:max-w-4xl rounded-lg md:rounded-xl border shadow-2xl my-auto md:my-0 mx-3 md:mx-0"
               style={{
                 backgroundColor: '#151a21',
                 borderColor: '#2d3748',
@@ -391,14 +392,14 @@ export default function Sales() {
             >
               {/* Header */}
               <div
-                className="flex items-center justify-between px-5 py-3.5 border-b"
+                className="flex items-center justify-between px-3 md:px-5 py-3 md:py-3.5 border-b"
                 style={{ borderColor: '#2d3748' }}
               >
                 <div>
-                  <h2 className="text-lg font-semibold text-creed-text-bright">
+                  <h2 className="text-base md:text-lg font-semibold text-creed-text-bright">
                     {isEditMode ? 'Edit Sale' : 'New Sale'}
                   </h2>
-                  <p className="text-xs text-creed-muted mt-0.5">
+                  <p className="text-[10px] md:text-xs text-creed-muted mt-0.5">
                     {isEditMode ? 'Update sale details' : 'Record a new product sale'}
                   </p>
                 </div>
@@ -416,7 +417,7 @@ export default function Sales() {
               </div>
 
               {/* Content */}
-              <form onSubmit={handleSubmit} className="p-5 space-y-5 max-h-[calc(100vh-180px)] overflow-y-auto">
+              <form onSubmit={handleSubmit} className="flex-1 p-3 md:p-5 space-y-3 md:space-y-5 overflow-y-auto md:max-h-[calc(100vh-180px)]">
                 {/* Date Section */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 mb-2">
@@ -474,14 +475,128 @@ export default function Sales() {
                       return (
                         <div
                           key={row.id}
-                          className="p-2.5 rounded-md border transition-all hover:border-creed-accent/30"
+                          className="p-2 md:p-2.5 rounded-md border transition-all hover:border-creed-accent/30"
                           style={{
                             backgroundColor: '#0d1117',
                             borderColor: isStockInsufficient ? '#ef4444' : '#2d3748',
                             borderWidth: '1px',
                           }}
                         >
-                          <div className="grid grid-cols-12 gap-2 items-end">
+                          {/* Mobile Layout */}
+                          <div className="md:hidden space-y-2">
+                            {/* Row header */}
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="w-5 h-5 rounded-full flex items-center justify-center bg-creed-accent/15 text-creed-accent font-semibold text-xs">
+                                {index + 1}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeProductRow(row.id)}
+                                disabled={
+                                  productRows.length === 1 ||
+                                  isActionLoading(isEditMode ? 'update' : 'create') ||
+                                  saveStatus === 'saving'
+                                }
+                                className="p-1 rounded text-creed-danger hover:bg-creed-danger/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Remove product line"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            {/* Product */}
+                            <div>
+                              <label className="block text-[10px] font-medium text-creed-muted mb-1">
+                                Product <span className="text-creed-danger">*</span>
+                              </label>
+                              <select
+                                value={row.productId}
+                                onChange={(e) => updateProductRow(row.id, 'productId', e.target.value)}
+                                disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
+                                className="w-full px-2 py-1.5 text-xs rounded border transition-all focus:ring-1 focus:ring-creed-accent focus:border-creed-accent outline-none disabled:opacity-50 disabled:cursor-not-allowed text-creed-text"
+                                style={{
+                                  backgroundColor: '#0a0e14',
+                                  borderColor: '#2d3748',
+                                  borderWidth: '1px',
+                                }}
+                                required
+                              >
+                                <option value="">Select product</option>
+                                {products.map((product) => (
+                                  <option key={product.id} value={product.id}>
+                                    {product.name} (Stock: {product.quantity})
+                                  </option>
+                                ))}
+                              </select>
+                              {isStockInsufficient && (
+                                <p className="text-[10px] text-creed-danger mt-1">
+                                  Insufficient stock (Available: {availableStock})
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Quantity and Price in a row */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-medium text-creed-muted mb-1">
+                                  Qty (Bags) <span className="text-creed-danger">*</span>
+                                </label>
+                                <input
+                                  type="number"
+                                  value={row.quantityBags || ''}
+                                  onChange={(e) =>
+                                    updateProductRow(row.id, 'quantityBags', parseFloat(e.target.value) || 0)
+                                  }
+                                  min="0"
+                                  step="1"
+                                  placeholder="0"
+                                  disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
+                                  className="w-full px-2 py-1.5 text-xs rounded border transition-all focus:ring-1 focus:ring-creed-accent focus:border-creed-accent outline-none disabled:opacity-50 disabled:cursor-not-allowed text-creed-text text-center"
+                                  style={{
+                                    backgroundColor: '#0a0e14',
+                                    borderColor: '#2d3748',
+                                    borderWidth: '1px',
+                                  }}
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-medium text-creed-muted mb-1">
+                                  Price ($) <span className="text-creed-danger">*</span>
+                                </label>
+                                <input
+                                  type="number"
+                                  value={row.sellingPriceUSD || ''}
+                                  onChange={(e) =>
+                                    updateProductRow(row.id, 'sellingPriceUSD', parseFloat(e.target.value) || 0)
+                                  }
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
+                                  className="w-full px-2 py-1.5 text-xs rounded border transition-all focus:ring-1 focus:ring-creed-accent focus:border-creed-accent outline-none disabled:opacity-50 disabled:cursor-not-allowed text-creed-text text-right"
+                                  style={{
+                                    backgroundColor: '#0a0e14',
+                                    borderColor: '#2d3748',
+                                    borderWidth: '1px',
+                                  }}
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            {/* Line Total */}
+                            <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: '#2d3748' }}>
+                              <span className="text-[10px] font-medium text-creed-muted">Line Total</span>
+                              <span className="text-sm font-semibold text-creed-accent">
+                                ${calculateLineTotal(row.quantityBags, row.sellingPriceUSD).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Desktop Layout */}
+                          <div className="hidden md:grid grid-cols-12 gap-2 items-end">
                             {/* Row Number */}
                             <div className="col-span-1 flex items-center justify-center pb-1">
                               <div className="w-5 h-5 rounded-full flex items-center justify-center bg-creed-accent/15 text-creed-accent font-semibold text-xs">
@@ -633,7 +748,7 @@ export default function Sales() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-3 border-t" style={{ borderColor: '#2d3748' }}>
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 pt-3 border-t" style={{ borderColor: '#2d3748' }}>
                   <button
                     type="submit"
                     disabled={
@@ -642,7 +757,7 @@ export default function Sales() {
                       saveStatus === 'saving' ||
                       productRows.some((row) => row.productId && row.quantityBags > getAvailableStock(row.productId))
                     }
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold text-sm text-white bg-creed-primary hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-md font-semibold text-sm text-white bg-creed-primary hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                   >
                     {isActionLoading(isEditMode ? 'update' : 'create') ? (
                       <>
@@ -663,7 +778,7 @@ export default function Sales() {
                       resetForm();
                     }}
                     disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
-                    className="px-4 py-2 rounded-md font-semibold text-sm text-creed-muted hover:text-creed-text hover:bg-creed-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2.5 md:py-2 rounded-md font-semibold text-sm text-creed-muted hover:text-creed-text hover:bg-creed-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                   >
                     Cancel
                   </button>
@@ -687,7 +802,7 @@ export default function Sales() {
           <>
             Are you sure you want to delete this sale from{' '}
             <strong className="text-creed-text-bright">
-              {deleteConfirm ? new Date(deleteConfirm.date).toLocaleDateString() : ''}
+              {deleteConfirm ? formatDate(deleteConfirm.date) : ''}
             </strong>
             ?
             <br />
