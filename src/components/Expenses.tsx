@@ -373,107 +373,85 @@ export default function Expenses() {
 
         {/* Pagination Controls */}
         {expenses.length > 0 && totalPages > 1 && (
-          <div
-            className="px-6 py-4 border-t flex items-center justify-between"
-            style={{ borderColor: '#2d3748' }}
-          >
-            {/* Mobile View: Page X / Y */}
-            <div className="flex md:hidden items-center justify-between w-full">
-              <button
-                onClick={goToPreviousPage}
-                disabled={currentPage === 1}
-                className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: '#1a2129',
-                  borderColor: '#2d3748',
-                  borderWidth: '1px',
-                  color: currentPage === 1 ? '#6b7280' : '#00d9ff',
-                }}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Prev</span>
-              </button>
-
-              <span className="text-sm font-medium text-creed-text">
-                Page {currentPage} / {totalPages}
-              </span>
-
-              <button
-                onClick={goToNextPage}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: '#1a2129',
-                  borderColor: '#2d3748',
-                  borderWidth: '1px',
-                  color: currentPage === totalPages ? '#6b7280' : '#00d9ff',
-                }}
-              >
-                <span>Next</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Desktop View: Full Pagination */}
-            <div className="hidden md:flex items-center justify-between w-full">
-              <button
-                onClick={goToPreviousPage}
-                disabled={currentPage === 1}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: '#1a2129',
-                  borderColor: '#2d3748',
-                  borderWidth: '1px',
-                  color: currentPage === 1 ? '#6b7280' : '#00d9ff',
-                }}
-              >
-                <ChevronLeft className="w-5 h-5" />
-                <span>Previous</span>
-              </button>
-
-              <div className="flex items-center gap-2">
-                {getPageNumbers().map((page, index) => {
-                  if (page === '...') {
-                    return (
-                      <span key={`ellipsis-${index}`} className="px-3 py-2 text-creed-muted">
-                        ...
-                      </span>
-                    );
-                  }
-
-                  const pageNum = page as number;
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => goToPage(pageNum)}
-                      className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
-                      style={{
-                        backgroundColor: currentPage === pageNum ? '#0d1117' : '#1a2129',
-                        borderColor: currentPage === pageNum ? '#00d9ff' : '#2d3748',
-                        borderWidth: currentPage === pageNum ? '2px' : '1px',
-                        color: currentPage === pageNum ? '#00d9ff' : '#9ca3af',
-                      }}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
+          <div className="px-4 md:px-6 py-4 border-t" style={{ borderColor: '#2d3748' }}>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              {/* Pagination Info */}
+              <div className="text-xs text-creed-muted">
+                Showing <span className="font-semibold text-creed-text">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+                <span className="font-semibold text-creed-text">
+                  {Math.min(currentPage * ITEMS_PER_PAGE, expenses.length)}
+                </span>{' '}
+                of <span className="font-semibold text-creed-text">{expenses.length}</span> expenses
               </div>
 
-              <button
-                onClick={goToNextPage}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
+              {/* Pagination Buttons */}
+              <div className="flex items-center gap-1">
+                {/* Previous Button */}
+                <button
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-md transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-creed-primary/10"
+                  style={{
+                    backgroundColor: currentPage === 1 ? 'transparent' : '#1a2129',
+                    borderColor: '#2d3748',
+                    borderWidth: '1px',
+                  }}
+                  title="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4 text-creed-text" />
+                </button>
+
+                {/* Page Numbers */}
+                <div className="hidden sm:flex items-center gap-1">
+                  {getPageNumbers().map((page, index) => (
+                    <div key={index}>
+                      {page === '...' ? (
+                        <span className="px-2 py-1 text-xs text-creed-muted">...</span>
+                      ) : (
+                        <button
+                          onClick={() => goToPage(page as number)}
+                          className={`min-w-[32px] px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                            currentPage === page
+                              ? 'text-creed-accent'
+                              : 'text-creed-text hover:bg-creed-primary/10'
+                          }`}
+                          style={{
+                            backgroundColor: currentPage === page ? '#0d1117' : '#1a2129',
+                            borderColor: currentPage === page ? '#00d9ff' : '#2d3748',
+                            borderWidth: currentPage === page ? '2px' : '1px',
+                          }}
+                        >
+                          {page}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mobile: Simple page indicator */}
+                <div className="sm:hidden px-3 py-1.5 rounded-md text-xs font-medium text-creed-text" style={{
                   backgroundColor: '#1a2129',
                   borderColor: '#2d3748',
                   borderWidth: '1px',
-                  color: currentPage === totalPages ? '#6b7280' : '#00d9ff',
-                }}
-              >
-                <span>Next</span>
-                <ChevronRight className="w-5 h-5" />
-              </button>
+                }}>
+                  {currentPage} / {totalPages}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-md transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-creed-primary/10"
+                  style={{
+                    backgroundColor: currentPage === totalPages ? 'transparent' : '#1a2129',
+                    borderColor: '#2d3748',
+                    borderWidth: '1px',
+                  }}
+                  title="Next page"
+                >
+                  <ChevronRight className="w-4 h-4 text-creed-text" />
+                </button>
+              </div>
             </div>
           </div>
         )}
