@@ -38,9 +38,16 @@ export function useCashSituation() {
       return { ...transaction, balance: runningBalance };
     });
 
-    // Sort by createdAt descending for display (newest first)
+    // Sort by date descending, then by createdAt descending for display (newest first)
     return transactionsWithBalance.sort((a, b) => {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA === dateB) {
+        // Same date, sort by creation time (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      // Sort by date (newest first)
+      return dateB - dateA;
     });
   }, [cashTransactions]);
 
