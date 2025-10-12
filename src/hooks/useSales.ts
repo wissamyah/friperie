@@ -1,11 +1,93 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDataContext } from '../contexts/DataContext';
-import { Sale, SaleProductLine, Product, CashTransaction } from '../services/github/types';
+import { Sale, SaleProductLine, Product, CashTransaction, ProductSaleSummary } from '../services/github/types';
 import { githubDataManager } from '../services/githubDataManager';
 
 interface ActionLoading {
   type: 'create' | 'update' | 'delete';
   id?: string;
+}
+
+// Helper: Aggregate products from sale lines (handles duplicates)
+interface AggregatedProduct {
+  productId: string;
+  productName: string;
+  totalQuantity: number;
+  totalAmount: number;
+  prices: number[]; // Track unique prices
+}
+
+function aggregateProductsFromSale(saleProducts: SaleProductLine[]): Map<string, AggregatedProduct> {
+  const aggregated = new Map<string, AggregatedProduct>();
+
+  saleProducts.forEach((line) => {
+    const existing = aggregated.get(line.productId);
+    if (existing) {
+      existing.totalQuantity += line.quantityBags;
+      existing.totalAmount += line.lineTotal;
+      // Track unique prices
+      if (!existing.prices.includes(line.sellingPriceUSD)) {
+        existing.prices.push(line.sellingPriceUSD);
+      }
+    } else {
+      aggregated.set(line.productId, {
+        productId: line.productId,
+        productName: line.productName,
+        totalQuantity: line.quantityBags,
+        totalAmount: line.lineTotal,
+        prices: [line.sellingPriceUSD],
+      });
+    }
+  });
+
+  return aggregated;
+}
+
+// Helper: Calculate product summary with average prices
+function calculateProductSummary(saleProducts: SaleProductLine[]): ProductSaleSummary[] {
+  const aggregated = aggregateProductsFromSale(saleProducts);
+  const summary: ProductSaleSummary[] = [];
+
+  aggregated.forEach((product) => {
+    summary.push({
+      productId: product.productId,
+      productName: product.productName,
+      totalQuantity: product.totalQuantity,
+      averagePrice: product.totalAmount / product.totalQuantity, // Weighted average
+      totalAmount: product.totalAmount,
+      priceVariations: product.prices.length,
+    });
+  });
+
+  return summary;
+}
+
+// Helper: Validate aggregated stock availability
+function validateAggregatedStock(
+  saleProducts: SaleProductLine[],
+  availableProducts: Product[]
+): { valid: boolean; error?: string } {
+  const aggregated = aggregateProductsFromSale(saleProducts);
+
+  for (const [productId, aggregatedProduct] of aggregated) {
+    const product = availableProducts.find((p) => p.id === productId);
+
+    if (!product) {
+      return {
+        valid: false,
+        error: `Product ${aggregatedProduct.productName} not found`,
+      };
+    }
+
+    if (product.quantity < aggregatedProduct.totalQuantity) {
+      return {
+        valid: false,
+        error: `Insufficient stock for ${aggregatedProduct.productName}. Available: ${product.quantity}, Required: ${aggregatedProduct.totalQuantity}`,
+      };
+    }
+  }
+
+  return { valid: true };
 }
 
 export function useSales() {
@@ -99,28 +181,25 @@ export function useSales() {
         const currentProducts = githubDataManager.getData('products') || [];
         const currentCashTransactions = githubDataManager.getData('cashTransactions') || [];
 
-        // Validate stock availability
-        for (const saleProduct of saleProducts) {
-          const product = currentProducts.find((p) => p.id === saleProduct.productId);
-          if (!product) {
-            throw new Error(`Product ${saleProduct.productName} not found`);
-          }
-          if (product.quantity < saleProduct.quantityBags) {
-            throw new Error(
-              `Insufficient stock for ${saleProduct.productName}. Available: ${product.quantity}, Required: ${saleProduct.quantityBags}`
-            );
-          }
+        // Validate stock availability (handles duplicate products correctly)
+        const stockValidation = validateAggregatedStock(saleProducts, currentProducts);
+        if (!stockValidation.valid) {
+          throw new Error(stockValidation.error);
         }
 
         const totalAmountUSD = saleProducts.reduce((sum, p) => sum + p.lineTotal, 0);
         const productNames = saleProducts.map(p => p.productName).join(', ');
         const timestamp = new Date().toISOString();
 
+        // Calculate product summary (includes average prices for duplicate products)
+        const productSummary = calculateProductSummary(saleProducts);
+
         // Create sale record
         const newSale: Sale = {
           id: `sale-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           date,
           products: saleProducts,
+          productSummary,
           totalAmountUSD,
           createdAt: timestamp,
           updatedAt: timestamp,
@@ -138,13 +217,14 @@ export function useSales() {
           createdAt: timestamp,
         };
 
-        // Update product quantities
+        // Update product quantities (aggregate duplicates correctly)
+        const aggregatedProducts = aggregateProductsFromSale(saleProducts);
         const updatedProducts = currentProducts.map((product) => {
-          const saleProduct = saleProducts.find((sp) => sp.productId === product.id);
-          if (saleProduct) {
+          const aggregated = aggregatedProducts.get(product.id);
+          if (aggregated) {
             return {
               ...product,
-              quantity: product.quantity - saleProduct.quantityBags,
+              quantity: product.quantity - aggregated.totalQuantity,
               updatedAt: timestamp,
             };
           }
@@ -217,11 +297,15 @@ export function useSales() {
         const productNames = saleProducts.map(p => p.productName).join(', ');
         const timestamp = new Date().toISOString();
 
+        // Calculate product summary (includes average prices for duplicate products)
+        const productSummary = calculateProductSummary(saleProducts);
+
         // Update sale record
         const updatedSale: Sale = {
           ...originalSale,
           date,
           products: saleProducts,
+          productSummary,
           totalAmountUSD,
           updatedAt: timestamp,
         };
@@ -294,13 +378,14 @@ export function useSales() {
         const relatedTransaction = currentCashTransactions.find((t) => t.relatedSaleId === saleId);
         const timestamp = new Date().toISOString();
 
-        // Restore product quantities
+        // Restore product quantities (aggregate duplicates correctly)
+        const aggregatedProducts = aggregateProductsFromSale(sale.products);
         const updatedProducts = currentProducts.map((product) => {
-          const saleProduct = sale.products.find((sp) => sp.productId === product.id);
-          if (saleProduct) {
+          const aggregated = aggregatedProducts.get(product.id);
+          if (aggregated) {
             return {
               ...product,
-              quantity: product.quantity + saleProduct.quantityBags,
+              quantity: product.quantity + aggregated.totalQuantity,
               updatedAt: timestamp,
             };
           }

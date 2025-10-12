@@ -113,11 +113,22 @@ export interface SaleProductLine {
   lineTotal: number; // quantityBags * sellingPriceUSD
 }
 
+// Product summary for a sale (aggregates duplicate products)
+export interface ProductSaleSummary {
+  productId: string;
+  productName: string;
+  totalQuantity: number; // Total bags across all lines for this product
+  averagePrice: number; // Weighted average price
+  totalAmount: number; // Total revenue for this product
+  priceVariations: number; // Number of different prices (1 = single price, >1 = multiple prices)
+}
+
 // Sale entity
 export interface Sale {
   id: string;
   date: string; // ISO date string
-  products: SaleProductLine[];
+  products: SaleProductLine[]; // Individual line items (may have duplicates)
+  productSummary?: ProductSaleSummary[]; // Aggregated view of unique products
   totalAmountUSD: number; // Sum of all line totals
   createdAt: string;
   updatedAt: string;
