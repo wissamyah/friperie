@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, Receipt, Edit2, X, Building2, Zap, Users, Megaphone, Package, Truck, Wrench, Calendar, DollarSign, FileText } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Trash2, Receipt, Edit2, X, Building2, Zap, Users, Megaphone, Package, Truck, Wrench, Calendar, DollarSign, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import ConfirmModal from './ConfirmModal';
@@ -22,6 +22,8 @@ const categoryConfig = {
 const categories = Object.keys(categoryConfig);
 
 type CategoryKey = keyof typeof categoryConfig;
+
+const ITEMS_PER_PAGE = 15;
 
 export default function Expenses() {
   const {
@@ -46,6 +48,9 @@ export default function Expenses() {
   const [category, setCategory] = useState('');
   const [amountUSD, setAmountUSD] = useState<number>(0);
   const [description, setDescription] = useState('');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -125,6 +130,82 @@ export default function Expenses() {
     } else {
       alert(`Failed to delete expense: ${result.error}`);
     }
+  };
+
+  // Pagination logic
+  const { paginatedExpenses, totalPages } = useMemo(() => {
+    // First sort expenses by date (newest first)
+    const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Calculate pagination
+    const total = Math.ceil(sortedExpenses.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginated = sortedExpenses.slice(startIndex, endIndex);
+
+    return { paginatedExpenses: paginated, totalPages: total };
+  }, [expenses, currentPage]);
+
+  // Reset to page 1 if current page exceeds total pages
+  if (currentPage > totalPages && totalPages > 0) {
+    setCurrentPage(1);
+  }
+
+  // Pagination helper functions
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  // Generate page numbers with ellipsis
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxPagesToShow = 5;
+
+    if (totalPages <= maxPagesToShow) {
+      // Show all pages if there are fewer than maxPagesToShow
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+
+      // Calculate range around current page
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
+
+      // Add ellipsis after first page if needed
+      if (start > 2) {
+        pages.push('...');
+      }
+
+      // Add pages around current page
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      // Add ellipsis before last page if needed
+      if (end < totalPages - 1) {
+        pages.push('...');
+      }
+
+      // Always show last page
+      pages.push(totalPages);
+    }
+
+    return pages;
   };
 
   if (loading) {
@@ -216,9 +297,7 @@ export default function Expenses() {
                 </tr>
               </thead>
               <tbody>
-                {expenses
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((expense) => {
+                {paginatedExpenses.map((expense) => {
                     const categoryInfo = categoryConfig[expense.category as CategoryKey] || categoryConfig['Other'];
                     const CategoryIcon = categoryInfo.icon;
 
@@ -289,6 +368,113 @@ export default function Expenses() {
                   })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {expenses.length > 0 && totalPages > 1 && (
+          <div
+            className="px-6 py-4 border-t flex items-center justify-between"
+            style={{ borderColor: '#2d3748' }}
+          >
+            {/* Mobile View: Page X / Y */}
+            <div className="flex md:hidden items-center justify-between w-full">
+              <button
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: '#1a2129',
+                  borderColor: '#2d3748',
+                  borderWidth: '1px',
+                  color: currentPage === 1 ? '#6b7280' : '#00d9ff',
+                }}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Prev</span>
+              </button>
+
+              <span className="text-sm font-medium text-creed-text">
+                Page {currentPage} / {totalPages}
+              </span>
+
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: '#1a2129',
+                  borderColor: '#2d3748',
+                  borderWidth: '1px',
+                  color: currentPage === totalPages ? '#6b7280' : '#00d9ff',
+                }}
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Desktop View: Full Pagination */}
+            <div className="hidden md:flex items-center justify-between w-full">
+              <button
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: '#1a2129',
+                  borderColor: '#2d3748',
+                  borderWidth: '1px',
+                  color: currentPage === 1 ? '#6b7280' : '#00d9ff',
+                }}
+              >
+                <ChevronLeft className="w-5 h-5" />
+                <span>Previous</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                {getPageNumbers().map((page, index) => {
+                  if (page === '...') {
+                    return (
+                      <span key={`ellipsis-${index}`} className="px-3 py-2 text-creed-muted">
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const pageNum = page as number;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
+                      style={{
+                        backgroundColor: currentPage === pageNum ? '#0d1117' : '#1a2129',
+                        borderColor: currentPage === pageNum ? '#00d9ff' : '#2d3748',
+                        borderWidth: currentPage === pageNum ? '2px' : '1px',
+                        color: currentPage === pageNum ? '#00d9ff' : '#9ca3af',
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: '#1a2129',
+                  borderColor: '#2d3748',
+                  borderWidth: '1px',
+                  color: currentPage === totalPages ? '#6b7280' : '#00d9ff',
+                }}
+              >
+                <span>Next</span>
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         )}
       </div>

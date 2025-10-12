@@ -386,13 +386,13 @@ export default function CashSituation() {
                           onClick={() => goToPage(page as number)}
                           className={`min-w-[32px] px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
                             currentPage === page
-                              ? 'bg-creed-primary text-white'
+                              ? 'text-creed-accent'
                               : 'text-creed-text hover:bg-creed-primary/10'
                           }`}
                           style={{
-                            backgroundColor: currentPage === page ? '#00d9ff' : '#1a2129',
-                            borderColor: '#2d3748',
-                            borderWidth: '1px',
+                            backgroundColor: currentPage === page ? '#0d1117' : '#1a2129',
+                            borderColor: currentPage === page ? '#00d9ff' : '#2d3748',
+                            borderWidth: currentPage === page ? '2px' : '1px',
                           }}
                         >
                           {page}
