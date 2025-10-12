@@ -1,7 +1,10 @@
-import { Wallet, TrendingUp, TrendingDown, ShoppingCart, Receipt, FileText, Calendar, DollarSign } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, ShoppingCart, Receipt, FileText, Calendar, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCashSituation } from '../hooks/useCashSituation';
 import PageLoader from './PageLoader';
 import { formatDate } from '../utils/dateFormatter';
+import { useState, useMemo } from 'react';
+
+const ITEMS_PER_PAGE = 15;
 
 export default function CashSituation() {
   const {
@@ -13,6 +16,82 @@ export default function CashSituation() {
     totalExpenses,
     transactionCount,
   } = useCashSituation();
+
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Calculate pagination
+  const { paginatedTransactions, totalPages } = useMemo(() => {
+    const total = Math.ceil(cashTransactions.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginated = cashTransactions.slice(startIndex, endIndex);
+
+    return {
+      paginatedTransactions: paginated,
+      totalPages: total,
+    };
+  }, [cashTransactions, currentPage]);
+
+  // Reset to page 1 when transactions change
+  useMemo(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        pages.push(currentPage - 1);
+        pages.push(currentPage);
+        pages.push(currentPage + 1);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
 
   if (loading) {
     return (
@@ -193,7 +272,7 @@ export default function CashSituation() {
                 </tr>
               </thead>
               <tbody>
-                {cashTransactions.map((transaction) => (
+                {paginatedTransactions.map((transaction) => (
                   <tr
                     key={transaction.id}
                     className="border-b transition-colors hover:bg-creed-primary/5"
@@ -263,6 +342,91 @@ export default function CashSituation() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {cashTransactions.length > 0 && totalPages > 1 && (
+          <div className="px-4 md:px-6 py-4 border-t" style={{ borderColor: '#2d3748' }}>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              {/* Pagination Info */}
+              <div className="text-xs text-creed-muted">
+                Showing <span className="font-semibold text-creed-text">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+                <span className="font-semibold text-creed-text">
+                  {Math.min(currentPage * ITEMS_PER_PAGE, cashTransactions.length)}
+                </span>{' '}
+                of <span className="font-semibold text-creed-text">{cashTransactions.length}</span> transactions
+              </div>
+
+              {/* Pagination Buttons */}
+              <div className="flex items-center gap-1">
+                {/* Previous Button */}
+                <button
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-md transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-creed-primary/10"
+                  style={{
+                    backgroundColor: currentPage === 1 ? 'transparent' : '#1a2129',
+                    borderColor: '#2d3748',
+                    borderWidth: '1px',
+                  }}
+                  title="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4 text-creed-text" />
+                </button>
+
+                {/* Page Numbers */}
+                <div className="hidden sm:flex items-center gap-1">
+                  {getPageNumbers().map((page, index) => (
+                    <div key={index}>
+                      {page === '...' ? (
+                        <span className="px-2 py-1 text-xs text-creed-muted">...</span>
+                      ) : (
+                        <button
+                          onClick={() => goToPage(page as number)}
+                          className={`min-w-[32px] px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                            currentPage === page
+                              ? 'bg-creed-primary text-white'
+                              : 'text-creed-text hover:bg-creed-primary/10'
+                          }`}
+                          style={{
+                            backgroundColor: currentPage === page ? '#00d9ff' : '#1a2129',
+                            borderColor: '#2d3748',
+                            borderWidth: '1px',
+                          }}
+                        >
+                          {page}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mobile: Simple page indicator */}
+                <div className="sm:hidden px-3 py-1.5 rounded-md text-xs font-medium text-creed-text" style={{
+                  backgroundColor: '#1a2129',
+                  borderColor: '#2d3748',
+                  borderWidth: '1px',
+                }}>
+                  {currentPage} / {totalPages}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-md transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-creed-primary/10"
+                  style={{
+                    backgroundColor: currentPage === totalPages ? 'transparent' : '#1a2129',
+                    borderColor: '#2d3748',
+                    borderWidth: '1px',
+                  }}
+                  title="Next page"
+                >
+                  <ChevronRight className="w-4 h-4 text-creed-text" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
