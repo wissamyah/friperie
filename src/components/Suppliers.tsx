@@ -152,7 +152,12 @@ export default function Suppliers({ onNavigateToLedger }: SuppliersProps) {
         <button
           onClick={handleOpenCreateModal}
           disabled={isActionLoading('create') || saveStatus === 'saving'}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-creed-primary hover:opacity-90 transition-all shadow-button-3d disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md"
+          style={{
+            backgroundColor: '#0c4a6e',
+            borderColor: '#0284c7',
+            color: '#fff'
+          }}
         >
           <Plus className="w-5 h-5" />
           <span className="hidden md:inline">Add Supplier</span>
@@ -301,7 +306,12 @@ export default function Suppliers({ onNavigateToLedger }: SuppliersProps) {
             <button
               type="submit"
               disabled={!supplierName.trim() || isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-white bg-creed-primary hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-button-3d"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all border disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md"
+              style={{
+                backgroundColor: '#0c4a6e',
+                borderColor: '#0284c7',
+                color: '#fff'
+              }}
             >
               {isActionLoading(isEditMode ? 'update' : 'create') ? (
                 <>

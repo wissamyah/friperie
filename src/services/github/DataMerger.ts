@@ -14,6 +14,8 @@ export class DataMerger {
       sales: this.mergeArrays(remote.sales || [], local.sales || []),
       expenses: this.mergeArrays(remote.expenses || [], local.expenses || []),
       cashTransactions: this.mergeArrays(remote.cashTransactions || [], local.cashTransactions || []),
+      partners: this.mergeArrays(remote.partners || [], local.partners || []),
+      partnerTransactions: this.mergeArrays(remote.partnerTransactions || [], local.partnerTransactions || []),
       metadata: local.metadata || remote.metadata,
     };
   }
@@ -46,6 +48,8 @@ export class DataMerger {
       sales: [],
       expenses: [],
       cashTransactions: [],
+      partners: [],
+      partnerTransactions: [],
     };
   }
 }

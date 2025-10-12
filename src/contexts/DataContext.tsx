@@ -27,6 +27,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({
     sales: [],
     expenses: [],
     cashTransactions: [],
+    partners: [],
+    partnerTransactions: [],
     metadata: undefined,
   }));
 
@@ -58,6 +60,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({
           sales: [],
           expenses: [],
           cashTransactions: [],
+          partners: [],
+          partnerTransactions: [],
           metadata: undefined,
         });
       }

@@ -310,7 +310,12 @@ export default function Sales() {
         <button
           onClick={handleOpenCreateModal}
           disabled={saveStatus === 'saving'}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-creed-primary hover:opacity-90 transition-all shadow-button-3d disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md"
+          style={{
+            backgroundColor: '#0c4a6e',
+            borderColor: '#0284c7',
+            color: '#fff'
+          }}
         >
           <Plus className="w-5 h-5" />
           <span className="hidden md:inline">Add Sale</span>
@@ -919,7 +924,12 @@ export default function Sales() {
                       saveStatus === 'saving' ||
                       productRows.some((row) => row.productId && row.quantityBags > getAvailableStock(row.productId))
                     }
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-md font-semibold text-sm text-white bg-creed-primary hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-md font-semibold text-sm transition-all border disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md active:scale-95"
+                    style={{
+                      backgroundColor: '#0c4a6e',
+                      borderColor: '#0284c7',
+                      color: '#fff'
+                    }}
                   >
                     {isActionLoading(isEditMode ? 'update' : 'create') ? (
                       <>

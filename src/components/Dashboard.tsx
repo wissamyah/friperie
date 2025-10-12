@@ -21,7 +21,8 @@ import {
   Home,
   ShoppingCart,
   Receipt,
-  BarChart3
+  BarChart3,
+  Users
 } from 'lucide-react';
 import Products from './Products';
 import Suppliers from './Suppliers';
@@ -31,6 +32,7 @@ import Payments from './Payments';
 import Sales from './Sales';
 import CashSituation from './CashSituation';
 import Expenses from './Expenses';
+import Partners from './Partners';
 import DashboardHome from './DashboardHome';
 import Settings from './Settings';
 import Reports from './Reports';
@@ -40,7 +42,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState(() => {
     // Load saved tab from localStorage on mount, default to 'dashboard'
     const savedTab = localStorage.getItem('activeTab');
-    const validTabs = ['dashboard', 'products', 'sales', 'suppliers', 'containers', 'cash', 'expenses', 'payments', 'ledger', 'reports', 'settings'];
+    const validTabs = ['dashboard', 'products', 'sales', 'suppliers', 'containers', 'cash', 'expenses', 'partners', 'payments', 'ledger', 'reports', 'settings'];
 
     // If saved tab is valid, use it; otherwise default to 'dashboard'
     if (savedTab && validTabs.includes(savedTab)) {
@@ -162,6 +164,7 @@ export default function Dashboard() {
       children: [
         { id: 'cash', name: 'Cash Situation', icon: Wallet },
         { id: 'expenses', name: 'Expenses', icon: Receipt },
+        { id: 'partners', name: 'Partners', icon: Users },
         { id: 'suppliers', name: 'Suppliers', icon: Truck },
         { id: 'payments', name: 'Payments', icon: DollarSign },
         { id: 'ledger', name: 'Supplier Ledger', icon: BookOpen },
@@ -193,6 +196,7 @@ export default function Dashboard() {
       submenu: [
         { id: 'cash', name: 'Cash', icon: Wallet },
         { id: 'expenses', name: 'Expenses', icon: Receipt },
+        { id: 'partners', name: 'Partners', icon: Users },
         { id: 'suppliers', name: 'Suppliers', icon: Truck },
         { id: 'payments', name: 'Payments', icon: DollarSign },
         { id: 'ledger', name: 'Ledger', icon: BookOpen },
@@ -387,12 +391,13 @@ export default function Dashboard() {
               {activeTab === 'containers' && <Containers />}
               {activeTab === 'cash' && <CashSituation />}
               {activeTab === 'expenses' && <Expenses />}
+              {activeTab === 'partners' && <Partners />}
               {activeTab === 'payments' && <Payments />}
               {activeTab === 'ledger' && <SupplierLedger preselectedSupplierId={selectedSupplierId} />}
               {activeTab === 'reports' && <Reports />}
               {activeTab === 'settings' && <Settings />}
               {/* Fallback to dashboard if no tab matches */}
-              {!['dashboard', 'products', 'sales', 'suppliers', 'containers', 'cash', 'expenses', 'payments', 'ledger', 'reports', 'settings'].includes(activeTab) && <DashboardHome />}
+              {!['dashboard', 'products', 'sales', 'suppliers', 'containers', 'cash', 'expenses', 'partners', 'payments', 'ledger', 'reports', 'settings'].includes(activeTab) && <DashboardHome />}
             </>
           )}
         </main>

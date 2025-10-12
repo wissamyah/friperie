@@ -1,4 +1,4 @@
-import { Wallet, TrendingUp, TrendingDown, ShoppingCart, Receipt, FileText, Calendar, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, ShoppingCart, Receipt, FileText, Calendar, DollarSign, ChevronLeft, ChevronRight, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { useCashSituation } from '../hooks/useCashSituation';
 import PageLoader from './PageLoader';
 import { formatDate } from '../utils/dateFormatter';
@@ -289,7 +289,7 @@ export default function CashSituation() {
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          transaction.type === 'sale'
+                          transaction.type === 'sale' || transaction.type === 'partner_injection'
                             ? 'bg-creed-success/20 text-creed-success border border-creed-success/30'
                             : 'bg-creed-danger/20 text-creed-danger border border-creed-danger/30'
                         }`}
@@ -299,10 +299,20 @@ export default function CashSituation() {
                             <ShoppingCart className="w-3 h-3 mr-1" />
                             Sale
                           </>
-                        ) : (
+                        ) : transaction.type === 'expense' ? (
                           <>
                             <Receipt className="w-3 h-3 mr-1" />
                             Expense
+                          </>
+                        ) : transaction.type === 'partner_injection' ? (
+                          <>
+                            <ArrowUpCircle className="w-3 h-3 mr-1" />
+                            Injection
+                          </>
+                        ) : (
+                          <>
+                            <ArrowDownCircle className="w-3 h-3 mr-1" />
+                            Withdrawal
                           </>
                         )}
                       </span>

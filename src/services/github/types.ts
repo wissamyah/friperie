@@ -163,19 +163,43 @@ export interface Expense {
   updatedAt: string;
 }
 
+// Partner entity
+export interface Partner {
+  id: string;
+  name: string;
+  balance: number; // Running balance of injections - withdrawals
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Partner transaction entity
+export interface PartnerTransaction {
+  id: string;
+  partnerId: string;
+  partnerName: string; // Stored for historical reference
+  date: string; // ISO date string
+  type: 'injection' | 'withdrawal';
+  amountUSD: number; // Always positive, type determines direction
+  description: string;
+  relatedCashTransactionId?: string; // Link to cash transaction
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Cash transaction types
-export type CashTransactionType = "sale" | "expense";
+export type CashTransactionType = "sale" | "expense" | "partner_injection" | "partner_withdrawal";
 
 // Cash transaction entity
 export interface CashTransaction {
   id: string;
   date: string; // ISO date string
   type: CashTransactionType;
-  amount: number; // Positive for income (sales), negative for expenses
+  amount: number; // Positive for income (sales, injections), negative for expenses/withdrawals
   balance: number; // Running balance after this transaction
   description: string;
   relatedSaleId?: string; // Link to sale if type is "sale"
   relatedExpenseId?: string; // Link to expense if type is "expense"
+  relatedPartnerTransactionId?: string; // Link to partner transaction
   createdAt: string;
 }
 
@@ -189,6 +213,8 @@ export interface DataState {
   sales: Sale[];
   expenses: Expense[];
   cashTransactions: CashTransaction[];
+  partners: Partner[];
+  partnerTransactions: PartnerTransaction[];
   metadata?: {
     lastUpdated: string;
     version: string;
