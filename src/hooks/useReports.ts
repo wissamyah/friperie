@@ -2,6 +2,14 @@ import { useMemo } from 'react';
 import { useDataContext } from '../contexts/DataContext';
 import { Sale, Expense, CashTransaction, Product, Container } from '../services/github/types';
 
+// Helper function to format date in local timezone as YYYY-MM-DD
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export interface DateRange {
   start: string; // YYYY-MM-DD
   end: string;   // YYYY-MM-DD
@@ -169,7 +177,7 @@ export function useReports(dateRange?: DateRange) {
 
   // Calculate today's metrics
   const todayMetrics = useMemo((): DailyMetrics => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatLocalDate(new Date());
     const todaySales = (data.sales || []).filter(sale => sale.date === today);
     const todayExpenses = (data.expenses || []).filter(expense => expense.date === today);
     const todayTransactions = (data.cashTransactions || []).filter(t => t.date === today);
@@ -196,7 +204,7 @@ export function useReports(dateRange?: DateRange) {
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay()); // Sunday
     weekStart.setHours(0, 0, 0, 0);
-    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekStartStr = formatLocalDate(weekStart);
 
     const weekSales = (data.sales || []).filter(sale => sale.date >= weekStartStr);
     const weekExpenses = (data.expenses || []).filter(expense => expense.date >= weekStartStr);
@@ -221,7 +229,7 @@ export function useReports(dateRange?: DateRange) {
   const monthlyMetrics = useMemo(() => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthStartStr = monthStart.toISOString().split('T')[0];
+    const monthStartStr = formatLocalDate(monthStart);
 
     const monthSales = (data.sales || []).filter(sale => sale.date >= monthStartStr);
     const monthExpenses = (data.expenses || []).filter(expense => expense.date >= monthStartStr);

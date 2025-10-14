@@ -9,6 +9,14 @@ interface DateRangeSelectorProps {
 
 type MonthPreset = 'thisMonth' | 'lastMonth' | 'last3Months' | 'last6Months' | 'ytd';
 
+// Helper function to format date in local timezone as YYYY-MM-DD
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function DateRangeSelector({
   selectedRange,
   onRangeChange,
@@ -39,13 +47,13 @@ export default function DateRangeSelector({
   // Month navigation functions
   const getMonthPresetRange = (preset: MonthPreset): DateRange => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = formatLocalDate(now);
 
     switch (preset) {
       case 'thisMonth': {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         return {
-          start: monthStart.toISOString().split('T')[0],
+          start: formatLocalDate(monthStart),
           end: today,
         };
       }
@@ -54,15 +62,15 @@ export default function DateRangeSelector({
         const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
         return {
-          start: lastMonth.toISOString().split('T')[0],
-          end: lastMonthEnd.toISOString().split('T')[0],
+          start: formatLocalDate(lastMonth),
+          end: formatLocalDate(lastMonthEnd),
         };
       }
 
       case 'last3Months': {
         const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
         return {
-          start: threeMonthsAgo.toISOString().split('T')[0],
+          start: formatLocalDate(threeMonthsAgo),
           end: today,
         };
       }
@@ -70,7 +78,7 @@ export default function DateRangeSelector({
       case 'last6Months': {
         const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
         return {
-          start: sixMonthsAgo.toISOString().split('T')[0],
+          start: formatLocalDate(sixMonthsAgo),
           end: today,
         };
       }
@@ -78,7 +86,7 @@ export default function DateRangeSelector({
       case 'ytd': {
         const yearStart = new Date(now.getFullYear(), 0, 1);
         return {
-          start: yearStart.toISOString().split('T')[0],
+          start: formatLocalDate(yearStart),
           end: today,
         };
       }
@@ -103,10 +111,10 @@ export default function DateRangeSelector({
                            date.getMonth() === now.getMonth();
 
     return {
-      start: monthStart.toISOString().split('T')[0],
+      start: formatLocalDate(monthStart),
       end: isCurrentMonth
-        ? now.toISOString().split('T')[0]
-        : monthEnd.toISOString().split('T')[0],
+        ? formatLocalDate(now)
+        : formatLocalDate(monthEnd),
     };
   };
 
@@ -127,8 +135,11 @@ export default function DateRangeSelector({
   };
 
   const jumpToToday = () => {
+    const today = formatLocalDate(new Date());
     setCurrentViewMonth(new Date());
-    handleMonthPreset('thisMonth');
+    setActiveMonthPreset(null);
+    setShowCustom(false);
+    onRangeChange({ start: today, end: today });
   };
 
   const formatMonthYear = (date: Date): string => {

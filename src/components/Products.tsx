@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, Package, Edit2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Trash2, Package, Edit2, TrendingUp, DollarSign } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import Modal from './Modal';
@@ -26,6 +26,18 @@ export default function Products() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   const isEditMode = !!editingProduct;
+
+  // Calculate stock statistics
+  const stockStats = useMemo(() => {
+    const totalQuantity = products.reduce((sum, product) => sum + (product.quantity || 0), 0);
+    const totalValue = products.reduce((sum, product) => {
+      const quantity = product.quantity || 0;
+      const cost = product.costPerBagUSD || 0;
+      return sum + (quantity * cost);
+    }, 0);
+
+    return { totalQuantity, totalValue };
+  }, [products]);
 
   const handleOpenCreateModal = () => {
     setEditingProduct(null);
@@ -125,6 +137,54 @@ export default function Products() {
           <Plus className="w-5 h-5" />
           <span className="hidden md:inline">Add Product</span>
         </button>
+      </div>
+
+      {/* Stock Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Total Stock Quantity Card */}
+        <div className="backdrop-blur-sm rounded-lg border shadow-card p-6" style={{
+          backgroundColor: '#1a2129',
+          borderColor: '#2d3748',
+          borderWidth: '1px'
+        }}>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-creed-muted mb-1">Total Stock Quantity</p>
+              <p className="text-3xl font-bold text-creed-text-bright">
+                {stockStats.totalQuantity.toLocaleString()}
+                <span className="text-base font-normal text-creed-muted ml-2">bags</span>
+              </p>
+            </div>
+            <div className="p-3 rounded-xl border-2" style={{
+              backgroundColor: '#151a21',
+              borderColor: '#0284c7'
+            }}>
+              <TrendingUp className="w-8 h-8" style={{ color: '#0284c7' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Total Stock Value Card */}
+        <div className="backdrop-blur-sm rounded-lg border shadow-card p-6" style={{
+          backgroundColor: '#1a2129',
+          borderColor: '#2d3748',
+          borderWidth: '1px'
+        }}>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-creed-muted mb-1">Total Stock Value</p>
+              <p className="text-3xl font-bold text-creed-accent">
+                ${stockStats.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="p-3 rounded-xl border-2" style={{
+              backgroundColor: '#151a21',
+              borderColor: '#10b981'
+            }}>
+              <DollarSign className="w-8 h-8" style={{ color: '#10b981' }} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Products Table */}
