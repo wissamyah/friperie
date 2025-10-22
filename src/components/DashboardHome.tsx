@@ -23,7 +23,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { formatDate, formatDateLong, formatDateShort } from '../utils/dateFormatter';
 
 export default function DashboardHome() {
-  const { todayMetrics, weeklyMetrics, monthlyMetrics, dailyTrends, productPerformance } = useReports();
+  const { todayMetrics, weeklyMetrics, monthlyMetrics, dailyTrends, productPerformance, todayProfitLoss, monthlyProfitLoss } = useReports();
   const { data } = useDataContext();
   const { currentBalance } = useCashSituation();
 
@@ -41,23 +41,38 @@ export default function DashboardHome() {
 
   const revenueChange = yesterdayData ? getChange(todayMetrics.totalRevenue, yesterdayData.revenue) : undefined;
   const expenseChange = yesterdayData ? getChange(todayMetrics.totalExpenses, yesterdayData.expenses) : undefined;
-  const profitChange = yesterdayData ? getChange(todayMetrics.netProfit, yesterdayData.profit) : undefined;
+  const profitChange = yesterdayData ? getChange(todayProfitLoss.netProfit, yesterdayData.profit) : undefined;
 
-  // Get last month's data for comparison
+  // Get last month's data for comparison with accurate P&L calculation
   const now = new Date();
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
   const lastMonthStartStr = lastMonthStart.toISOString().split('T')[0];
   const lastMonthEndStr = lastMonthEnd.toISOString().split('T')[0];
 
-  const lastMonthData = dailyTrends.filter(d => d.date >= lastMonthStartStr && d.date <= lastMonthEndStr);
-  const lastMonthRevenue = lastMonthData.reduce((sum, d) => sum + d.revenue, 0);
-  const lastMonthExpenses = lastMonthData.reduce((sum, d) => sum + d.expenses, 0);
-  const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
+  // Calculate last month's accurate P&L
+  const lastMonthSales = (data.sales || []).filter(s => s.date >= lastMonthStartStr && s.date <= lastMonthEndStr);
+  const lastMonthExpenses = (data.expenses || []).filter(e => e.date >= lastMonthStartStr && e.date <= lastMonthEndStr);
 
-  const monthRevenueChange = getChange(monthlyMetrics.totalRevenue, lastMonthRevenue);
-  const monthExpenseChange = getChange(monthlyMetrics.totalExpenses, lastMonthExpenses);
-  const monthProfitChange = getChange(monthlyMetrics.netProfit, lastMonthProfit);
+  const lastMonthCOGS = lastMonthSales.reduce((sum, sale) => {
+    const saleCOGS = sale.products.reduce((saleSum, saleProduct) => {
+      const product = data.products?.find(p => p.id === saleProduct.productId);
+      if (product) {
+        return saleSum + (saleProduct.quantityBags * product.costPerBagUSD);
+      }
+      return saleSum;
+    }, 0);
+    return sum + saleCOGS;
+  }, 0);
+
+  const lastMonthRevenue = lastMonthSales.reduce((sum, s) => sum + s.totalAmountUSD, 0);
+  const lastMonthOpEx = lastMonthExpenses.reduce((sum, e) => sum + e.amountUSD, 0);
+  const lastMonthGrossProfit = lastMonthRevenue - lastMonthCOGS;
+  const lastMonthNetProfit = lastMonthGrossProfit - lastMonthOpEx;
+
+  const monthRevenueChange = getChange(monthlyProfitLoss.revenue, lastMonthRevenue);
+  const monthExpenseChange = getChange(monthlyProfitLoss.operatingExpenses, lastMonthOpEx);
+  const monthProfitChange = getChange(monthlyProfitLoss.netProfit, lastMonthNetProfit);
 
   // Calculate inventory metrics
   const products = data.products || [];
@@ -128,11 +143,11 @@ export default function DashboardHome() {
           />
           <ReportCard
             title="Net Profit"
-            value={`$${todayMetrics.netProfit.toFixed(2)}`}
+            value={`$${todayProfitLoss.netProfit.toFixed(2)}`}
             icon={TrendingUp}
             trend={profitChange}
             subtitle="vs yesterday"
-            colorScheme={todayMetrics.netProfit >= 0 ? 'success' : 'danger'}
+            colorScheme={todayProfitLoss.netProfit >= 0 ? 'success' : 'danger'}
           />
           <ReportCard
             title="Cash Balance"
@@ -153,7 +168,7 @@ export default function DashboardHome() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <ReportCard
             title="Monthly Revenue"
-            value={`$${monthlyMetrics.totalRevenue.toFixed(2)}`}
+            value={`$${monthlyProfitLoss.revenue.toFixed(2)}`}
             icon={DollarSign}
             trend={monthRevenueChange}
             subtitle="vs last month"
@@ -161,7 +176,7 @@ export default function DashboardHome() {
           />
           <ReportCard
             title="Monthly Expenses"
-            value={`$${monthlyMetrics.totalExpenses.toFixed(2)}`}
+            value={`$${monthlyProfitLoss.operatingExpenses.toFixed(2)}`}
             icon={Receipt}
             trend={monthExpenseChange}
             subtitle="vs last month"
@@ -169,18 +184,18 @@ export default function DashboardHome() {
           />
           <ReportCard
             title="Monthly Profit"
-            value={`$${monthlyMetrics.netProfit.toFixed(2)}`}
+            value={`$${monthlyProfitLoss.netProfit.toFixed(2)}`}
             icon={TrendingUp}
             trend={monthProfitChange}
             subtitle="vs last month"
-            colorScheme={monthlyMetrics.netProfit >= 0 ? 'success' : 'danger'}
+            colorScheme={monthlyProfitLoss.netProfit >= 0 ? 'success' : 'danger'}
           />
           <ReportCard
             title="Profit Margin"
-            value={`${monthlyMetrics.profitMargin.toFixed(1)}%`}
+            value={`${monthlyProfitLoss.netMargin.toFixed(1)}%`}
             icon={Activity}
             subtitle="This month"
-            colorScheme={monthlyMetrics.profitMargin >= 0 ? 'success' : 'danger'}
+            colorScheme={monthlyProfitLoss.netMargin >= 0 ? 'success' : 'danger'}
           />
         </div>
       </div>

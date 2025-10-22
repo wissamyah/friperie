@@ -250,11 +250,11 @@ export function useReports(dateRange?: DateRange) {
     };
   }, [data.sales, data.expenses, data.cashTransactions]);
 
-  // Calculate P&L (Profit & Loss)
-  const profitLoss = useMemo(() => {
+  // Helper function to calculate P&L metrics
+  const calculateProfitLoss = (sales: Sale[], expenses: Expense[]) => {
     // Calculate COGS based on actual products sold
     // COGS = Sum of (quantity sold × cost per bag) for all sales
-    const totalCOGS = filteredSales.reduce((sum, sale) => {
+    const totalCOGS = sales.reduce((sum, sale) => {
       const saleCOGS = sale.products.reduce((saleSum, saleProduct) => {
         // Find the product to get its cost per bag
         const product = (data.products || []).find(p => p.id === saleProduct.productId);
@@ -267,8 +267,8 @@ export function useReports(dateRange?: DateRange) {
       return sum + saleCOGS;
     }, 0);
 
-    const revenue = filteredSales.reduce((sum, sale) => sum + sale.totalAmountUSD, 0);
-    const operatingExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amountUSD, 0);
+    const revenue = sales.reduce((sum, sale) => sum + sale.totalAmountUSD, 0);
+    const operatingExpenses = expenses.reduce((sum, expense) => sum + expense.amountUSD, 0);
     const grossProfit = revenue - totalCOGS;
     const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
     const netProfit = grossProfit - operatingExpenses;
@@ -283,7 +283,30 @@ export function useReports(dateRange?: DateRange) {
       netProfit,
       netMargin,
     };
+  };
+
+  // Calculate P&L (Profit & Loss) for filtered data
+  const profitLoss = useMemo(() => {
+    return calculateProfitLoss(filteredSales, filteredExpenses);
   }, [filteredSales, filteredExpenses, data.products]);
+
+  // Calculate today's P&L
+  const todayProfitLoss = useMemo(() => {
+    const today = formatLocalDate(new Date());
+    const todaySales = (data.sales || []).filter(sale => sale.date === today);
+    const todayExpenses = (data.expenses || []).filter(expense => expense.date === today);
+    return calculateProfitLoss(todaySales, todayExpenses);
+  }, [data.sales, data.expenses, data.products]);
+
+  // Calculate monthly P&L
+  const monthlyProfitLoss = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStartStr = formatLocalDate(monthStart);
+    const monthSales = (data.sales || []).filter(sale => sale.date >= monthStartStr);
+    const monthExpenses = (data.expenses || []).filter(expense => expense.date >= monthStartStr);
+    return calculateProfitLoss(monthSales, monthExpenses);
+  }, [data.sales, data.expenses, data.products]);
 
   return {
     metrics,
@@ -294,6 +317,8 @@ export function useReports(dateRange?: DateRange) {
     weeklyMetrics,
     monthlyMetrics,
     profitLoss,
+    todayProfitLoss,
+    monthlyProfitLoss,
     filteredSales,
     filteredExpenses,
     filteredTransactions,
