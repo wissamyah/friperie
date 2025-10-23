@@ -268,7 +268,17 @@ export function useReports(dateRange?: DateRange) {
     }, 0);
 
     const revenue = sales.reduce((sum, sale) => sum + sale.totalAmountUSD, 0);
-    const operatingExpenses = expenses.reduce((sum, expense) => sum + expense.amountUSD, 0);
+
+    // Calculate operating expenses, excluding "Custom Duties Payment" (already in COGS)
+    const operatingExpenses = expenses.reduce((sum, expense) => {
+      // Exclude "Custom Duties Payment" from P&L operating expenses
+      // This category is for paying customs duties already calculated in container COGS
+      if (expense.category === 'Custom Duties Payment') {
+        return sum;
+      }
+      return sum + expense.amountUSD;
+    }, 0);
+
     const grossProfit = revenue - totalCOGS;
     const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
     const netProfit = grossProfit - operatingExpenses;

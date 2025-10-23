@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, Receipt, Edit2, X, Building2, Zap, Users, Megaphone, Package, Truck, Wrench, Calendar, DollarSign, FileText, ChevronLeft, ChevronRight, Coffee, CreditCard, Send } from 'lucide-react';
+import { Plus, Trash2, Receipt, Edit2, X, Building2, Zap, Users, Megaphone, Package, Truck, Wrench, Calendar, DollarSign, FileText, ChevronLeft, ChevronRight, Coffee, CreditCard, Send, Banknote, AlertCircle } from 'lucide-react';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import ConfirmModal from './ConfirmModal';
@@ -19,6 +19,8 @@ const categoryConfig = {
   'Daily Expenses on Casuals': { icon: Coffee, color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
   'Commission on Repayment': { icon: CreditCard, color: 'bg-red-500/20 text-red-400 border-red-500/30' },
   'Commission on Transfer': { icon: Send, color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
+  'Custom Duties Payment': { icon: Banknote, color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  'Additional Customs Fees': { icon: AlertCircle, color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
   'Other': { icon: Receipt, color: 'bg-creed-muted/20 text-creed-muted border-creed-muted/30' },
 };
 
