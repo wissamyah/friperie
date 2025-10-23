@@ -141,7 +141,11 @@ export function usePayments() {
     setError(null);
 
     try {
-      const payment = payments.find((p) => p.id === paymentId);
+      // Get fresh data from GitHub to avoid stale state
+      const currentPayments = githubDataManager.getData('payments') || [];
+      const currentCashTransactions = githubDataManager.getData('cashTransactions') || [];
+
+      const payment = currentPayments.find((p) => p.id === paymentId);
       if (!payment) {
         throw new Error('Payment not found');
       }
@@ -153,8 +157,19 @@ export function usePayments() {
         );
       }
 
-      const filteredPayments = payments.filter((p) => p.id !== paymentId);
-      await githubDataManager.updateData('payments', filteredPayments);
+      // Find related cash transaction
+      const relatedTransaction = currentCashTransactions.find((t: any) => t.relatedPaymentId === paymentId);
+
+      // Batch update to GitHub
+      githubDataManager.startBatchUpdate();
+      await githubDataManager.updateData('payments', currentPayments.filter((p) => p.id !== paymentId));
+      if (relatedTransaction) {
+        await githubDataManager.updateData('cashTransactions',
+          currentCashTransactions.filter((t: any) => t.id !== relatedTransaction.id)
+        );
+      }
+      await githubDataManager.endBatchUpdate();
+
       return { success: true };
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to delete payment';

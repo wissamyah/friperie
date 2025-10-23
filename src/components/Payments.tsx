@@ -36,7 +36,7 @@ export default function Payments() {
   const [date, setDate] = useState('');
   const [amountEUR, setAmountEUR] = useState<number>(0);
   const [exchangeRate, setExchangeRate] = useState<number>(0);
-  const [commissionPercent, setCommissionPercent] = useState<number>(0);
+  const [commissionPercent, setCommissionPercent] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
 
   const isEditMode = !!editingPayment;
@@ -46,7 +46,7 @@ export default function Payments() {
     setDate('');
     setAmountEUR(0);
     setExchangeRate(0);
-    setCommissionPercent(0);
+    setCommissionPercent('');
     setNotes('');
     setEditingPayment(null);
   };
@@ -78,23 +78,23 @@ export default function Payments() {
 
     try {
       if (isEditMode) {
-        // UPDATE MODE - update payment record first, then ledger entry separately
-        // to avoid stale data issues during batch updates
+        // UPDATE MODE - update payment record, ledger entry, and cash transaction
+        githubDataManager.startBatchUpdate();
 
         // Update the payment record
         const result = await updatePayment(editingPayment.id, {
           date,
           amountEUR,
           exchangeRate,
-          commissionPercent,
+          commissionPercent: commissionPercent === '' ? 0 : commissionPercent,
           notes,
         });
 
-        if (!result.success) {
+        if (!result.success || !result.data) {
           throw new Error(result.error || 'Failed to update payment');
         }
 
-        // Find and update the corresponding ledger entry AFTER payment update completes
+        // Find and update the corresponding ledger entry
         const ledgerEntry = ledgerEntries.find(
           entry => entry.relatedPaymentId === editingPayment.id
         );
@@ -110,8 +110,51 @@ export default function Payments() {
             throw new Error(ledgerResult.error || 'Failed to update ledger entry');
           }
         }
+
+        // Update the related cash transaction
+        const currentCashTransactions = githubDataManager.getData('cashTransactions') || [];
+        const relatedTransaction = currentCashTransactions.find(
+          (t: any) => t.relatedPaymentId === editingPayment.id
+        );
+
+        if (relatedTransaction) {
+          // Calculate balance for the updated transaction based on chronological position
+          const calculateBalanceForUpdate = (amount: number, txDate: string, txCreatedAt: string, txId: string, allTransactions: any[]) => {
+            const transactionsBeforeThis = allTransactions.filter((t: any) => {
+              if (t.id === txId) return false;
+              const newDateTime = new Date(txDate).getTime();
+              const tDateTime = new Date(t.date).getTime();
+              if (tDateTime < newDateTime) return true;
+              if (tDateTime === newDateTime) {
+                return new Date(t.createdAt).getTime() < new Date(txCreatedAt).getTime();
+              }
+              return false;
+            });
+            return transactionsBeforeThis.reduce((sum: number, t: any) => sum + t.amount, 0) + amount;
+          };
+
+          const updatedCashTransaction = {
+            ...relatedTransaction,
+            date,
+            amount: -result.data.amountUSD, // Negative because cash is going out
+            balance: calculateBalanceForUpdate(
+              -result.data.amountUSD,
+              date,
+              relatedTransaction.createdAt,
+              relatedTransaction.id,
+              currentCashTransactions
+            ),
+            description: `Payment to ${supplier.name}${notes ? ` - ${notes}` : ''}`,
+          };
+
+          await githubDataManager.updateData('cashTransactions',
+            currentCashTransactions.map((t: any) => t.id === relatedTransaction.id ? updatedCashTransaction : t)
+          );
+        }
+
+        await githubDataManager.endBatchUpdate();
       } else {
-        // CREATE MODE - create payment and ledger entry in a batch
+        // CREATE MODE - create payment, ledger entry, and cash transaction in a batch
         githubDataManager.startBatchUpdate();
 
         // Create the payment record
@@ -121,7 +164,7 @@ export default function Payments() {
           date,
           amountEUR,
           exchangeRate,
-          commissionPercent,
+          commissionPercent === '' ? 0 : commissionPercent,
           notes
         );
 
@@ -142,6 +185,28 @@ export default function Payments() {
         if (!ledgerResult.success) {
           throw new Error(ledgerResult.error || 'Failed to create ledger entry');
         }
+
+        // Create cash transaction to record the payment outflow
+        const currentCashTransactions = githubDataManager.getData('cashTransactions') || [];
+        const timestamp = new Date().toISOString();
+
+        // Calculate balance for the new cash transaction
+        const calculateBalance = (amount: number, existingTransactions: any[]) => {
+          return existingTransactions.reduce((sum, t) => sum + t.amount, 0) + amount;
+        };
+
+        const newCashTransaction = {
+          id: `cash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          date,
+          type: 'payment' as const,
+          amount: -paymentResult.data.amountUSD, // Negative because cash is going out
+          balance: calculateBalance(-paymentResult.data.amountUSD, currentCashTransactions),
+          description: `Payment to ${supplier.name}${notes ? ` - ${notes}` : ''}`,
+          relatedPaymentId: paymentResult.data.id,
+          createdAt: timestamp,
+        };
+
+        await githubDataManager.updateData('cashTransactions', [...currentCashTransactions, newCashTransaction]);
 
         await githubDataManager.endBatchUpdate();
       }
@@ -166,7 +231,7 @@ export default function Payments() {
   };
 
   const calculatedUSD = amountEUR && exchangeRate
-    ? calculateAmountUSD(amountEUR, exchangeRate, commissionPercent)
+    ? calculateAmountUSD(amountEUR, exchangeRate, commissionPercent === '' ? 0 : commissionPercent)
     : 0;
 
   if (loading) {
@@ -414,9 +479,9 @@ export default function Payments() {
               <input
                 type="number"
                 value={exchangeRate || ''}
-                onChange={(e) => setExchangeRate(parseFloat(e.target.value) || 0)}
+                onChange={(e) => setExchangeRate(e.target.value === '' ? 0 : parseFloat(e.target.value))}
                 min="0"
-                step="0.0001"
+                step="any"
                 placeholder="1.1000"
                 disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
                 className="w-full px-4 py-2 rounded-lg border transition-all focus:ring-2 focus:ring-creed-primary focus:border-creed-primary outline-none disabled:opacity-50 disabled:cursor-not-allowed text-creed-text placeholder-creed-muted"
@@ -435,11 +500,11 @@ export default function Payments() {
               </label>
               <input
                 type="number"
-                value={commissionPercent || ''}
-                onChange={(e) => setCommissionPercent(parseFloat(e.target.value) || 0)}
+                value={commissionPercent}
+                onChange={(e) => setCommissionPercent(e.target.value === '' ? '' : parseFloat(e.target.value))}
                 min="0"
                 step="0.01"
-                placeholder="2.00"
+                placeholder="0.00"
                 disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
                 className="w-full px-4 py-2 rounded-lg border transition-all focus:ring-2 focus:ring-creed-primary focus:border-creed-primary outline-none disabled:opacity-50 disabled:cursor-not-allowed text-creed-text placeholder-creed-muted"
                 style={{
@@ -466,7 +531,7 @@ export default function Payments() {
             </div>
             {amountEUR > 0 && exchangeRate > 0 && (
               <p className="text-xs text-creed-muted mt-1">
-                €{amountEUR.toFixed(2)} × {exchangeRate.toFixed(4)} × (1 + {commissionPercent.toFixed(2)}%)
+                €{amountEUR.toFixed(2)} × {exchangeRate.toFixed(4)} × (1 + {(commissionPercent === '' ? 0 : commissionPercent).toFixed(2)}%)
               </p>
             )}
           </div>

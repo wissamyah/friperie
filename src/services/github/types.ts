@@ -187,7 +187,7 @@ export interface PartnerTransaction {
 }
 
 // Cash transaction types
-export type CashTransactionType = "sale" | "expense" | "partner_injection" | "partner_withdrawal";
+export type CashTransactionType = "sale" | "expense" | "partner_injection" | "partner_withdrawal" | "payment";
 
 // Cash transaction entity
 export interface CashTransaction {
@@ -200,6 +200,7 @@ export interface CashTransaction {
   relatedSaleId?: string; // Link to sale if type is "sale"
   relatedExpenseId?: string; // Link to expense if type is "expense"
   relatedPartnerTransactionId?: string; // Link to partner transaction
+  relatedPaymentId?: string; // Link to payment if type is "payment"
   createdAt: string;
 }
 
