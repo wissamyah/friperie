@@ -6,12 +6,13 @@
 export interface DataFile {
   name: string; // e.g., "data.json", "data2.json"
   path: string; // e.g., "data/data.json", "data/data2.json"
-  displayName: string; // e.g., "Data File 1", "Data File 2"
+  displayName: string; // e.g., "Data File 1", "Data File 2" or custom name
 }
 
 export class DataFileManager {
   private static instance: DataFileManager;
   private readonly STORAGE_KEY = "selected_data_file";
+  private readonly CUSTOM_NAMES_KEY = "data_file_custom_names";
   private readonly DEFAULT_DATA_FILE = "data.json";
   private readonly DATA_FOLDER = "data";
 
@@ -74,9 +75,60 @@ export class DataFileManager {
   }
 
   /**
-   * Get display name for a data file
+   * Get custom names mapping from localStorage
+   */
+  private getCustomNamesMap(): Record<string, string> {
+    if (typeof window === "undefined") {
+      return {};
+    }
+
+    const saved = localStorage.getItem(this.CUSTOM_NAMES_KEY);
+    if (!saved) return {};
+
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * Save custom names mapping to localStorage
+   */
+  private saveCustomNamesMap(map: Record<string, string>): void {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(this.CUSTOM_NAMES_KEY, JSON.stringify(map));
+    }
+  }
+
+  /**
+   * Set custom display name for a data file
+   */
+  setCustomDisplayName(fileName: string, customName: string): void {
+    const map = this.getCustomNamesMap();
+    const trimmedName = customName.trim();
+
+    if (trimmedName) {
+      map[fileName] = trimmedName;
+    } else {
+      delete map[fileName];
+    }
+
+    this.saveCustomNamesMap(map);
+  }
+
+  /**
+   * Get display name for a data file (checks for custom name first)
    */
   getDisplayName(fileName: string): string {
+    const customNames = this.getCustomNamesMap();
+
+    // Return custom name if it exists
+    if (customNames[fileName]) {
+      return customNames[fileName];
+    }
+
+    // Fall back to default naming
     const number = this.getFileNumber(fileName);
     return `Data File ${number}`;
   }
