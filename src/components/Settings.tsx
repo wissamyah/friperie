@@ -71,6 +71,7 @@ export default function Settings() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState<string>('');
   const [newFileName, setNewFileName] = useState<string>('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Load available data files on mount
   useEffect(() => {
@@ -157,6 +158,7 @@ export default function Settings() {
     if (trimmedName) {
       dataFileManager.setCustomDisplayName(currentDataFile, trimmedName);
       loadAvailableDataFiles(); // Refresh to show new name
+      setRefreshKey(prev => prev + 1); // Force re-render to show updated name
     }
     setIsEditingName(false);
   };
@@ -347,7 +349,7 @@ export default function Settings() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-creed-text-bright truncate">
+                    <h2 className="text-sm font-semibold text-creed-text-bright truncate" key={refreshKey}>
                       {dataFileManager.getDisplayName(currentDataFile)}
                     </h2>
                     <button
