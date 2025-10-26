@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Trash2, AlertTriangle, Package, Truck, Container, BookOpen, DollarSign, ShoppingCart, Receipt, Wallet, FileText, Plus, RefreshCw, Edit2, Check, X } from 'lucide-react';
+import { Settings as SettingsIcon, Trash2, AlertTriangle, Package, Truck, Container, BookOpen, DollarSign, ShoppingCart, Receipt, Wallet, FileText, Plus, RefreshCw, Edit2, Check, X, Wrench } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useContainers } from '../hooks/useContainers';
@@ -12,6 +12,7 @@ import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import ConfirmModal from './ConfirmModal';
 import Modal from './Modal';
 import Spinner from './Spinner';
+import StockRecoveryHelper from './StockRecoveryHelper';
 import { githubDataManager } from '../services/githubDataManager';
 import { dataFileManager, DataFile } from '../services/DataFileManager';
 
@@ -58,6 +59,7 @@ export default function Settings() {
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showStockRecovery, setShowStockRecovery] = useState(false);
 
   // Data file management state
   const [currentDataFile, setCurrentDataFile] = useState<string>('');
@@ -289,6 +291,27 @@ export default function Settings() {
     return `${selected.join(', ')}, and ${lastItem}`;
   };
 
+  // Render Stock Recovery Helper if active
+  if (showStockRecovery) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <button
+          onClick={() => setShowStockRecovery(false)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border hover:shadow-md"
+          style={{
+            backgroundColor: '#1a2129',
+            borderColor: '#2d3748',
+            color: '#fff'
+          }}
+        >
+          <X className="w-4 h-4" />
+          Back to Settings
+        </button>
+        <StockRecoveryHelper />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Page Header */}
@@ -296,6 +319,43 @@ export default function Settings() {
         <div>
           <h1 className="text-2xl font-bold text-creed-text-bright mb-1">Settings</h1>
           <p className="text-creed-muted">Manage your application data and preferences</p>
+        </div>
+      </div>
+
+      {/* Stock Recovery Tool Section */}
+      <div className="backdrop-blur-sm rounded-lg border shadow-card" style={{
+        backgroundColor: '#1a2129',
+        borderColor: '#ef4444',
+        borderWidth: '1px'
+      }}>
+        <div className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-xl border-2" style={{
+              backgroundColor: '#151a21',
+              borderColor: '#ef4444'
+            }}>
+              <Wrench className="w-6 h-6" style={{ color: '#ef4444' }} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-creed-text-bright mb-2">Stock Recovery Helper</h3>
+              <p className="text-sm text-creed-muted mb-4">
+                Use this tool to identify and fix duplicate stock issues caused by container edits.
+                This tool will help you find containers that may have added stock twice and correct them.
+              </p>
+              <button
+                onClick={() => setShowStockRecovery(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border hover:shadow-md"
+                style={{
+                  backgroundColor: '#7f1d1d',
+                  borderColor: '#ef4444',
+                  color: '#fff'
+                }}
+              >
+                <Wrench className="w-4 h-4" />
+                Open Stock Recovery Tool
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

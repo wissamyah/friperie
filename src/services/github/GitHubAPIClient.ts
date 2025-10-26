@@ -84,6 +84,7 @@ export class GitHubAPIClient {
       cashTransactions: rawData.cashTransactions || [],
       partners: rawData.partners || [],
       partnerTransactions: rawData.partnerTransactions || [],
+      stockAdjustments: rawData.stockAdjustments || [],
       metadata: rawData.metadata,
     };
 

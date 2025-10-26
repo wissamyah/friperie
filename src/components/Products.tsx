@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, Package, Edit2, TrendingUp, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Package, Edit2, TrendingUp, DollarSign, Settings } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
+import { useStockAdjustments } from '../hooks/useStockAdjustments';
 import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
+import StockAdjustmentModal from './StockAdjustmentModal';
 import Spinner from './Spinner';
 import PageLoader from './PageLoader';
 
@@ -18,12 +20,18 @@ export default function Products() {
     isActionLoading,
   } = useProducts();
 
+  const {
+    createStockAdjustment,
+    isActionLoading: isAdjustmentLoading,
+  } = useStockAdjustments();
+
   const { status: saveStatus } = useSaveStatusContext();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<{ id: string; name: string } | null>(null);
   const [productName, setProductName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [adjustingProduct, setAdjustingProduct] = useState<{ id: string; name: string; quantity: number; cost: number } | null>(null);
 
   const isEditMode = !!editingProduct;
 
@@ -86,6 +94,39 @@ export default function Products() {
     } else {
       alert(`Failed to delete product: ${result.error}`);
     }
+  };
+
+  const handleOpenAdjustmentModal = (product: { id: string; name: string; quantity: number; costPerBagUSD: number }) => {
+    setAdjustingProduct({
+      id: product.id,
+      name: product.name,
+      quantity: product.quantity,
+      cost: product.costPerBagUSD
+    });
+  };
+
+  const handleSubmitAdjustment = async (data: {
+    adjustmentType: any;
+    quantityChange: number;
+    reason: string;
+    newStockCost?: number;
+  }) => {
+    if (!adjustingProduct) return { success: false, error: 'No product selected' };
+
+    const result = await createStockAdjustment({
+      productId: adjustingProduct.id,
+      productName: adjustingProduct.name,
+      adjustmentType: data.adjustmentType,
+      quantityChange: data.quantityChange,
+      reason: data.reason,
+      newStockCost: data.newStockCost,
+    });
+
+    if (result.success) {
+      setAdjustingProduct(null);
+    }
+
+    return result;
   };
 
   if (loading) {
@@ -242,6 +283,20 @@ export default function Products() {
                     <td className="px-4 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          onClick={() => handleOpenAdjustmentModal({
+                            id: product.id,
+                            name: product.name,
+                            quantity: product.quantity || 0,
+                            costPerBagUSD: product.costPerBagUSD || 0
+                          })}
+                          disabled={saveStatus === 'saving'}
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-creed-primary/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{ color: '#0284c7' }}
+                          title="Adjust stock"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => handleOpenEditModal({ id: product.id, name: product.name })}
                           disabled={isActionLoading('update', product.id) || saveStatus === 'saving'}
                           className="inline-flex items-center justify-center p-1.5 rounded-lg text-creed-accent hover:bg-creed-accent/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -362,6 +417,26 @@ export default function Products() {
         cancelText="Cancel"
         isLoading={isActionLoading('delete', deleteConfirm?.id || '')}
       />
+
+      {/* Stock Adjustment Modal */}
+      {adjustingProduct && (
+        <StockAdjustmentModal
+          isOpen={!!adjustingProduct}
+          onClose={() => {
+            // Prevent closing during adjustment
+            if (isAdjustmentLoading('create')) return;
+            setAdjustingProduct(null);
+          }}
+          onSubmit={handleSubmitAdjustment}
+          product={{
+            id: adjustingProduct.id,
+            name: adjustingProduct.name,
+            currentQuantity: adjustingProduct.quantity,
+            currentCost: adjustingProduct.cost,
+          }}
+          isLoading={isAdjustmentLoading('create')}
+        />
+      )}
     </div>
   );
 }

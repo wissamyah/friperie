@@ -163,6 +163,38 @@ export interface Expense {
   updatedAt: string;
 }
 
+// Stock adjustment types
+export type StockAdjustmentType =
+  | 'increase'      // General increase
+  | 'decrease'      // General decrease
+  | 'physical-count' // Physical inventory count adjustment
+  | 'damage'        // Damaged goods
+  | 'loss'          // Lost/stolen goods
+  | 'found'         // Found stock (with known cost)
+  | 'correction';   // System correction
+
+// Stock adjustment entity
+export interface StockAdjustment {
+  id: string;
+  date: string; // ISO date string
+  productId: string;
+  productName: string; // Stored for historical reference
+  adjustmentType: StockAdjustmentType;
+  quantityChange: number; // Positive for increases, negative for decreases
+  reason: string;
+
+  // Cost preservation fields
+  systemQuantityBefore: number;
+  systemQuantityAfter: number;
+  costPerBagUSD: number; // Product's WAC at time of adjustment
+
+  // Optional: If adding new stock with different cost
+  newStockCost?: number; // Only for 'found' type adjustments with known cost
+
+  createdBy?: string; // Optional: user who made the adjustment
+  createdAt: string;
+}
+
 // Partner entity
 export interface Partner {
   id: string;
@@ -216,6 +248,7 @@ export interface DataState {
   cashTransactions: CashTransaction[];
   partners: Partner[];
   partnerTransactions: PartnerTransaction[];
+  stockAdjustments: StockAdjustment[];
   metadata?: {
     lastUpdated: string;
     version: string;

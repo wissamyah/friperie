@@ -474,10 +474,12 @@ export default function Containers() {
     const totalEURPaid = calculateAllocatedEUR();
 
     // Payment status: unpaid (0), partial (< total), paid (>= total)
+    // Use tolerance for floating-point comparison (1 cent)
+    const EPSILON = 0.01;
     let paymentStatus: 'unpaid' | 'partial' | 'paid' = 'unpaid';
     if (totalEURPaid === 0) {
       paymentStatus = 'unpaid';
-    } else if (totalEURPaid >= grandTotalEUR) {
+    } else if (totalEURPaid >= grandTotalEUR - EPSILON) {
       paymentStatus = 'paid';
     } else {
       paymentStatus = 'partial';
@@ -592,7 +594,13 @@ export default function Containers() {
         await githubDataManager.updateData('payments', updatedPayments, false);
 
         // Update product quantities and costs ONLY if container transitioned from open to closed
-        if (result.data && wasOpen && result.data.containerStatus === 'closed') {
+        // AND stock wasn't already added (check quantityAddedToStock)
+        const shouldAddStock = result.data &&
+                               wasOpen &&
+                               result.data.containerStatus === 'closed' &&
+                               (!originalContainer?.quantityAddedToStock || Object.keys(originalContainer.quantityAddedToStock).length === 0);
+
+        if (shouldAddStock) {
           const quantitiesAdded: {
             [productId: string]: {
               quantityAdded: number;
@@ -679,9 +687,9 @@ export default function Containers() {
           await updateContainer(editingContainerId, {
             quantityAddedToStock: quantitiesAdded,
           });
-        } else if (!wasOpen && result.data?.containerStatus === 'closed' && originalContainer?.quantityAddedToStock) {
+        } else if (!wasOpen && result.data?.containerStatus === 'closed' && originalContainer?.quantityAddedToStock && Object.keys(originalContainer.quantityAddedToStock).length > 0) {
           // If container was already closed and is being edited, recalculate costs based on new prices
-          // without changing stock quantities
+          // without changing stock quantities (only if stock was previously added)
           const storedQuantities = originalContainer.quantityAddedToStock;
 
           // Calculate weighted average exchange rate from payments (once, before loop)
@@ -749,6 +757,16 @@ export default function Containers() {
             });
             await githubDataManager.updateData('products', updatedProducts, false);
           }
+        } else if (!wasOpen && result.data?.containerStatus === 'closed' && (!originalContainer?.quantityAddedToStock || Object.keys(originalContainer.quantityAddedToStock).length === 0)) {
+          // Edge case: Container was "closed" before (due to status bug) but stock was never added
+          // This happens when containers had the status bug and were technically closed but showed as open
+          // Do NOT add stock - just log a warning
+          console.warn(`⚠️ Container ${editingContainerId} was closed but has no quantityAddedToStock record. Stock will NOT be added to prevent duplicates.`);
+
+          // Set an empty quantityAddedToStock to mark this container as processed
+          await updateContainer(editingContainerId, {
+            quantityAddedToStock: {},
+          });
         }
       } else {
         // CREATE MODE

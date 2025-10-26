@@ -1,7 +1,7 @@
 import { githubDataManager } from './githubDataManager';
 import { DataState } from './github/types';
 
-export type DataTypeKey = 'products' | 'suppliers' | 'containers' | 'supplierLedger' | 'payments' | 'sales' | 'expenses' | 'cashTransactions';
+export type DataTypeKey = 'products' | 'suppliers' | 'containers' | 'supplierLedger' | 'payments' | 'sales' | 'expenses' | 'cashTransactions' | 'stockAdjustments';
 
 export interface ResetOptions {
   dataTypes: DataTypeKey[];
@@ -36,6 +36,7 @@ class DataResetService {
       const currentSales = githubDataManager.getData('sales');
       const currentExpenses = githubDataManager.getData('expenses');
       const currentCashTransactions = githubDataManager.getData('cashTransactions');
+      const currentStockAdjustments = githubDataManager.getData('stockAdjustments');
 
       // Prepare updates for each data type
       const updates: Array<{ type: keyof DataState; data: any }> = [];
@@ -88,6 +89,12 @@ class DataResetService {
         updates.push({ type: 'cashTransactions', data: currentCashTransactions });
       }
 
+      if (dataTypes.includes('stockAdjustments')) {
+        updates.push({ type: 'stockAdjustments', data: [] });
+      } else {
+        updates.push({ type: 'stockAdjustments', data: currentStockAdjustments });
+      }
+
       // Queue all updates
       for (const update of updates) {
         await githubDataManager.updateData(update.type, update.data, false);
@@ -116,6 +123,7 @@ class DataResetService {
       sales: githubDataManager.getData('sales')?.length || 0,
       expenses: githubDataManager.getData('expenses')?.length || 0,
       cashTransactions: githubDataManager.getData('cashTransactions')?.length || 0,
+      stockAdjustments: githubDataManager.getData('stockAdjustments')?.length || 0,
     };
   }
 }

@@ -60,8 +60,11 @@ export const useContainers = () => {
     grandTotalEUR: number,
     totalEURPaid: number
   ): 'unpaid' | 'partial' | 'paid' => {
+    const EPSILON = 0.01; // Tolerance for floating-point comparison (1 cent)
+
     if (totalEURPaid === 0) return 'unpaid';
-    if (totalEURPaid >= grandTotalEUR) return 'paid';
+    // Use tolerance-based comparison to handle floating-point precision issues
+    if (totalEURPaid >= grandTotalEUR - EPSILON) return 'paid';
     return 'partial';
   };
 
