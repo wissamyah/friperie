@@ -767,6 +767,62 @@ export default function Containers() {
           await updateContainer(editingContainerId, {
             quantityAddedToStock: {},
           });
+        } else if (!wasOpen && result.data?.containerStatus === 'open' && originalContainer?.quantityAddedToStock && Object.keys(originalContainer.quantityAddedToStock).length > 0) {
+          // CRITICAL: Container was CLOSED and is now OPEN (payment removed/reduced or customs removed)
+          // Must REVERSE the stock addition to prevent phantom inventory
+          console.warn(`⚠️ Container ${editingContainerId} transitioned from CLOSED to OPEN. Reversing stock addition...`);
+
+          const storedQuantities = originalContainer.quantityAddedToStock;
+          const productUpdates = new Map<string, { quantity: number; costPerBagUSD: number }>();
+
+          // Reverse the stock addition for each product
+          for (const [productId, storedData] of Object.entries(storedQuantities)) {
+            const product = products.find((p) => p.id === productId);
+            if (product) {
+              const { quantityAdded, stockBefore, costBefore } = storedData;
+              const currentStock = product.quantity || 0;
+
+              // Calculate what the stock should be after reversal
+              const reversedStock = currentStock - quantityAdded;
+
+              // Revert to the cost before this container was closed
+              // We use costBefore because we stored it when the container was first closed
+              const reversedCost = reversedStock <= 0
+                ? 0 // If all stock is gone, cost is 0
+                : reversedStock <= stockBefore
+                ? costBefore // If we're back to or below original stock, use original cost
+                : calculateReverseWeightedAverageCost(
+                    currentStock,
+                    product.costPerBagUSD || 0,
+                    quantityAdded,
+                    costBefore // Use the container's cost for the removed portion
+                  );
+
+              productUpdates.set(productId, {
+                quantity: Math.max(0, reversedStock), // Prevent negative stock
+                costPerBagUSD: reversedCost
+              });
+            }
+          }
+
+          // Apply all product reversals at once
+          if (productUpdates.size > 0) {
+            const currentProducts = githubDataManager.getData('products');
+            const updatedProducts = currentProducts.map(product => {
+              const update = productUpdates.get(product.id);
+              return update
+                ? { ...product, ...update, updatedAt: new Date().toISOString() }
+                : product;
+            });
+            await githubDataManager.updateData('products', updatedProducts, false);
+          }
+
+          // Clear the quantityAddedToStock since container is now open
+          await updateContainer(editingContainerId, {
+            quantityAddedToStock: {},
+          });
+
+          console.log(`✓ Stock reversal completed for container ${editingContainerId}`);
         }
       } else {
         // CREATE MODE
