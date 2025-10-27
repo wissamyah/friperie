@@ -826,6 +826,29 @@ export default function Containers() {
         }
       } else {
         // CREATE MODE
+        // Pre-calculate quantityAddedToStock if container will be closed
+        let quantitiesAdded: {
+          [productId: string]: {
+            quantityAdded: number;
+            stockBefore: number;
+            costBefore: number;
+          }
+        } = {};
+
+        if (containerStatus === 'closed') {
+          // Pre-calculate quantities before creating container
+          for (const row of productRows) {
+            const product = products.find((p) => p.id === row.productId);
+            if (product) {
+              quantitiesAdded[row.productId] = {
+                quantityAdded: row.quantityBags,
+                stockBefore: product.quantity || 0,
+                costBefore: product.costPerBagUSD || 0,
+              };
+            }
+          }
+        }
+
         const containerResult = await createContainer({
           containerNumber: containerNumber.trim(),
           date,
@@ -844,6 +867,7 @@ export default function Containers() {
           paymentStatus,
           customsStatus,
           containerStatus,
+          quantityAddedToStock: quantitiesAdded,
         });
 
         if (!containerResult.success) {
@@ -919,14 +943,6 @@ export default function Containers() {
 
         // Update product quantities and costs (only if container is created as closed)
         if (containerResult.data && containerResult.data.containerStatus === 'closed') {
-          const quantitiesAdded: {
-            [productId: string]: {
-              quantityAdded: number;
-              stockBefore: number;
-              costBefore: number;
-            }
-          } = {};
-
           // Calculate weighted average exchange rate from payments (once, before loop)
           let weightedExchangeRate = 1.1; // Default fallback
           if (totalEURPaid > 0) {
@@ -979,13 +995,6 @@ export default function Containers() {
                 quantity: currentStock + newStock,
                 costPerBagUSD: newWeightedAvgCost
               });
-
-              // Track details for this product for future cost recalculation
-              quantitiesAdded[row.productId] = {
-                quantityAdded: newStock,
-                stockBefore: currentStock,
-                costBefore: currentCost,
-              };
             }
           }
 
@@ -1000,14 +1009,6 @@ export default function Containers() {
             });
             await githubDataManager.updateData('products', updatedProducts, false);
           }
-
-          // Update container to record quantities added to stock
-          const updatedContainer = {
-            ...containerResult.data,
-            quantityAddedToStock: quantitiesAdded,
-            updatedAt: new Date().toISOString(),
-          };
-          await updateContainer(containerResult.data.id, updatedContainer);
         }
       }
 

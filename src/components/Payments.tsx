@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Plus, Trash2, DollarSign, Edit2, ArrowRightLeft } from 'lucide-react';
 import { usePayments } from '../hooks/usePayments';
 import { useSuppliers } from '../hooks/useSuppliers';
-import { useSupplierLedger } from '../hooks/useSupplierLedger';
 import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import { githubDataManager } from '../services/githubDataManager';
 import Modal from './Modal';
@@ -24,11 +23,10 @@ export default function Payments() {
   } = usePayments();
 
   const { suppliers } = useSuppliers();
-  const { createPaymentEntry, updateLedgerEntry, ledgerEntries } = useSupplierLedger();
   const { status: saveStatus } = useSaveStatusContext();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingPayment, setEditingPayment] = useState<{ id: string } | null>(null);
+  const [editingPayment, setEditingPayment] = useState<{ id: string; originalSupplierId: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; supplierName: string } | null>(null);
 
   // Form state
@@ -57,7 +55,7 @@ export default function Payments() {
   };
 
   const handleOpenEditModal = (payment: any) => {
-    setEditingPayment({ id: payment.id });
+    setEditingPayment({ id: payment.id, originalSupplierId: payment.supplierId });
     setSupplierId(payment.supplierId);
     setDate(payment.date);
     setAmountEUR(payment.amountEUR);
@@ -81,8 +79,13 @@ export default function Payments() {
         // UPDATE MODE - update payment record, ledger entry, and cash transaction
         githubDataManager.startBatchUpdate();
 
-        // Update the payment record
+        // Detect if supplier changed
+        const supplierChanged = editingPayment.originalSupplierId !== supplierId;
+
+        // Update the payment record with new supplier info
         const result = await updatePayment(editingPayment.id, {
+          supplierId,
+          supplierName: supplier.name,
           date,
           amountEUR,
           exchangeRate,
@@ -94,20 +97,129 @@ export default function Payments() {
           throw new Error(result.error || 'Failed to update payment');
         }
 
-        // Find and update the corresponding ledger entry
-        const ledgerEntry = ledgerEntries.find(
-          entry => entry.relatedPaymentId === editingPayment.id
+        // Handle ledger entries directly using githubDataManager to avoid stale data issues
+        const currentLedgerEntries = githubDataManager.getData('supplierLedger') || [];
+        const ledgerEntry = currentLedgerEntries.find(
+          (entry: any) => entry.relatedPaymentId === editingPayment.id
         );
 
         if (ledgerEntry) {
-          const ledgerResult = await updateLedgerEntry(ledgerEntry.id, {
-            amount: Math.abs(amountEUR), // Ensure positive (credit)
-            description: `Payment received - ${notes || 'No notes'}`,
-            date,
-          });
+          if (supplierChanged) {
+            // Supplier changed: remove old ledger entry from original supplier and create new one for new supplier
+            console.log(`🔄 Supplier changed from ${editingPayment.originalSupplierId} to ${supplierId}`);
+            console.log(`📝 Removing ledger entry ${ledgerEntry.id} from original supplier`);
 
-          if (!ledgerResult.success) {
-            throw new Error(ledgerResult.error || 'Failed to update ledger entry');
+            // Remove the old ledger entry
+            let updatedLedgerEntries = currentLedgerEntries.filter((e: any) => e.id !== ledgerEntry.id);
+
+            // Recalculate balances for the ORIGINAL supplier (after removing the entry)
+            const originalSupplierEntries = updatedLedgerEntries
+              .filter((e: any) => e.supplierId === editingPayment.originalSupplierId)
+              .sort((a: any, b: any) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                if (dateA === dateB) {
+                  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                }
+                return dateA - dateB;
+              });
+
+            let runningBalance = 0;
+            const recalculatedOriginalEntries = originalSupplierEntries.map((entry: any) => {
+              runningBalance += entry.amount;
+              return { ...entry, balance: runningBalance };
+            });
+
+            // Replace original supplier entries with recalculated ones
+            updatedLedgerEntries = [
+              ...updatedLedgerEntries.filter((e: any) => e.supplierId !== editingPayment.originalSupplierId),
+              ...recalculatedOriginalEntries
+            ];
+
+            // Create new ledger entry for the NEW supplier
+            const newLedgerEntry = {
+              id: `ledger-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              supplierId,
+              supplierName: supplier.name,
+              type: 'payment' as const,
+              amount: Math.abs(amountEUR), // Positive for payment (credit)
+              balance: 0, // Will be recalculated
+              description: `Payment received - ${notes || 'No notes'}`,
+              relatedPaymentId: editingPayment.id,
+              date,
+              createdAt: new Date().toISOString(),
+            };
+
+            console.log(`✅ Creating new ledger entry ${newLedgerEntry.id} for new supplier ${supplierId}`);
+
+            // Add new entry
+            updatedLedgerEntries.push(newLedgerEntry);
+
+            // Recalculate balances for the NEW supplier (with the new entry)
+            const newSupplierEntries = updatedLedgerEntries
+              .filter((e: any) => e.supplierId === supplierId)
+              .sort((a: any, b: any) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                if (dateA === dateB) {
+                  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                }
+                return dateA - dateB;
+              });
+
+            runningBalance = 0;
+            const recalculatedNewEntries = newSupplierEntries.map((entry: any) => {
+              runningBalance += entry.amount;
+              return { ...entry, balance: runningBalance };
+            });
+
+            // Replace new supplier entries with recalculated ones
+            updatedLedgerEntries = [
+              ...updatedLedgerEntries.filter((e: any) => e.supplierId !== supplierId),
+              ...recalculatedNewEntries
+            ];
+
+            console.log(`💾 Saving updated ledger with ${updatedLedgerEntries.length} entries`);
+            await githubDataManager.updateData('supplierLedger', updatedLedgerEntries);
+          } else {
+            // Same supplier: just update the ledger entry amount, description, and date
+            const updatedEntry = {
+              ...ledgerEntry,
+              amount: Math.abs(amountEUR),
+              description: `Payment received - ${notes || 'No notes'}`,
+              date,
+            };
+
+            // Replace the old entry with updated one
+            let updatedLedgerEntries = currentLedgerEntries.map((e: any) =>
+              e.id === ledgerEntry.id ? updatedEntry : e
+            );
+
+            // Recalculate balances for this supplier
+            const supplierEntries = updatedLedgerEntries
+              .filter((e: any) => e.supplierId === supplierId)
+              .sort((a: any, b: any) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                if (dateA === dateB) {
+                  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                }
+                return dateA - dateB;
+              });
+
+            let runningBalance = 0;
+            const recalculatedEntries = supplierEntries.map((entry: any) => {
+              runningBalance += entry.amount;
+              return { ...entry, balance: runningBalance };
+            });
+
+            // Replace supplier entries with recalculated ones
+            updatedLedgerEntries = [
+              ...updatedLedgerEntries.filter((e: any) => e.supplierId !== supplierId),
+              ...recalculatedEntries
+            ];
+
+            await githubDataManager.updateData('supplierLedger', updatedLedgerEntries);
           }
         }
 
@@ -172,19 +284,49 @@ export default function Payments() {
           throw new Error(paymentResult.error || 'Failed to create payment');
         }
 
-        // Create ledger entry for the payment (credit)
-        const ledgerResult = await createPaymentEntry(
+        // Create ledger entry for the payment (credit) directly using githubDataManager
+        const currentLedgerEntries = githubDataManager.getData('supplierLedger') || [];
+        const newLedgerEntry = {
+          id: `ledger-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           supplierId,
-          supplier.name,
-          amountEUR,
-          `Payment received - ${notes || 'No notes'}`,
+          supplierName: supplier.name,
+          type: 'payment' as const,
+          amount: Math.abs(amountEUR), // Positive for payment (credit)
+          balance: 0, // Will be recalculated
+          description: `Payment received - ${notes || 'No notes'}`,
+          relatedPaymentId: paymentResult.data.id,
           date,
-          paymentResult.data.id // Pass the payment ID
-        );
+          createdAt: new Date().toISOString(),
+        };
 
-        if (!ledgerResult.success) {
-          throw new Error(ledgerResult.error || 'Failed to create ledger entry');
-        }
+        // Add new entry
+        const updatedLedgerEntries = [...currentLedgerEntries, newLedgerEntry];
+
+        // Recalculate balances for this supplier
+        const supplierEntries = updatedLedgerEntries
+          .filter((e: any) => e.supplierId === supplierId)
+          .sort((a: any, b: any) => {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            if (dateA === dateB) {
+              return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            }
+            return dateA - dateB;
+          });
+
+        let runningBalance = 0;
+        const recalculatedEntries = supplierEntries.map((entry: any) => {
+          runningBalance += entry.amount;
+          return { ...entry, balance: runningBalance };
+        });
+
+        // Replace supplier entries with recalculated ones
+        const finalLedgerEntries = [
+          ...updatedLedgerEntries.filter((e: any) => e.supplierId !== supplierId),
+          ...recalculatedEntries
+        ];
+
+        await githubDataManager.updateData('supplierLedger', finalLedgerEntries);
 
         // Create cash transaction to record the payment outflow
         const currentCashTransactions = githubDataManager.getData('cashTransactions') || [];

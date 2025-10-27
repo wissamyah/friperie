@@ -1,7 +1,7 @@
 import { githubDataManager } from './githubDataManager';
 import { DataState } from './github/types';
 
-export type DataTypeKey = 'products' | 'suppliers' | 'containers' | 'supplierLedger' | 'payments' | 'sales' | 'expenses' | 'cashTransactions' | 'stockAdjustments';
+export type DataTypeKey = 'products' | 'suppliers' | 'containers' | 'supplierLedger' | 'payments' | 'sales' | 'expenses' | 'cashTransactions' | 'stockAdjustments' | 'partners' | 'partnerTransactions';
 
 export interface ResetOptions {
   dataTypes: DataTypeKey[];
@@ -37,6 +37,8 @@ class DataResetService {
       const currentExpenses = githubDataManager.getData('expenses');
       const currentCashTransactions = githubDataManager.getData('cashTransactions');
       const currentStockAdjustments = githubDataManager.getData('stockAdjustments');
+      const currentPartners = githubDataManager.getData('partners');
+      const currentPartnerTransactions = githubDataManager.getData('partnerTransactions');
 
       // Prepare updates for each data type
       const updates: Array<{ type: keyof DataState; data: any }> = [];
@@ -95,6 +97,18 @@ class DataResetService {
         updates.push({ type: 'stockAdjustments', data: currentStockAdjustments });
       }
 
+      if (dataTypes.includes('partners')) {
+        updates.push({ type: 'partners', data: [] });
+      } else {
+        updates.push({ type: 'partners', data: currentPartners });
+      }
+
+      if (dataTypes.includes('partnerTransactions')) {
+        updates.push({ type: 'partnerTransactions', data: [] });
+      } else {
+        updates.push({ type: 'partnerTransactions', data: currentPartnerTransactions });
+      }
+
       // Queue all updates
       for (const update of updates) {
         await githubDataManager.updateData(update.type, update.data, false);
@@ -124,6 +138,8 @@ class DataResetService {
       expenses: githubDataManager.getData('expenses')?.length || 0,
       cashTransactions: githubDataManager.getData('cashTransactions')?.length || 0,
       stockAdjustments: githubDataManager.getData('stockAdjustments')?.length || 0,
+      partners: githubDataManager.getData('partners')?.length || 0,
+      partnerTransactions: githubDataManager.getData('partnerTransactions')?.length || 0,
     };
   }
 }

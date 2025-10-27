@@ -138,6 +138,13 @@ export default function Sales() {
     }, 0);
   };
 
+  // Calculate total bags
+  const calculateTotalBags = () => {
+    return productRows.reduce((sum, row) => {
+      return sum + row.quantityBags;
+    }, 0);
+  };
+
   // Add new product row
   const addProductRow = () => {
     setProductRows([
@@ -898,18 +905,28 @@ export default function Sales() {
                   </div>
 
                   <div
-                    className="p-2.5 rounded-md border"
+                    className="p-2.5 rounded-md border grid grid-cols-2 gap-3"
                     style={{
                       backgroundColor: '#0d1117',
                       borderColor: '#2d3748',
                       borderWidth: '1px',
                     }}
                   >
-                    <div className="text-[10px] text-creed-muted mb-0.5 uppercase tracking-wide">
-                      Total Sale Amount
+                    <div>
+                      <div className="text-[10px] text-creed-muted mb-0.5 uppercase tracking-wide">
+                        Total Bags
+                      </div>
+                      <div className="text-lg font-bold text-creed-primary">
+                        {calculateTotalBags()}
+                      </div>
                     </div>
-                    <div className="text-lg font-bold text-creed-accent">
-                      ${calculateTotalAmount().toFixed(2)}
+                    <div>
+                      <div className="text-[10px] text-creed-muted mb-0.5 uppercase tracking-wide">
+                        Total Amount
+                      </div>
+                      <div className="text-lg font-bold text-creed-accent">
+                        ${calculateTotalAmount().toFixed(2)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -924,7 +941,7 @@ export default function Sales() {
                       saveStatus === 'saving' ||
                       productRows.some((row) => row.productId && row.quantityBags > getAvailableStock(row.productId))
                     }
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-md font-semibold text-sm transition-all border disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md active:scale-95"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 lg:py-1.5 lg:px-3 rounded-md font-semibold text-sm lg:text-xs transition-all border disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md active:scale-95"
                     style={{
                       backgroundColor: '#0c4a6e',
                       borderColor: '#0284c7',
@@ -938,7 +955,7 @@ export default function Sales() {
                       </>
                     ) : (
                       <>
-                        <ShoppingCart className="w-4 h-4" />
+                        <ShoppingCart className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                         {isEditMode ? 'Update Sale' : 'Create Sale'}
                       </>
                     )}
@@ -950,7 +967,7 @@ export default function Sales() {
                       resetForm();
                     }}
                     disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
-                    className="px-4 py-2.5 md:py-2 rounded-md font-semibold text-sm text-creed-muted hover:text-creed-text hover:bg-creed-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                    className="px-4 py-2.5 md:py-2 lg:py-1.5 lg:px-3 rounded-md font-semibold text-sm lg:text-xs text-creed-muted hover:text-creed-text hover:bg-creed-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                   >
                     Cancel
                   </button>

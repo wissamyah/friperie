@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Trash2, AlertTriangle, Package, Truck, Container, BookOpen, DollarSign, ShoppingCart, Receipt, Wallet, FileText, Plus, RefreshCw, Edit2, Check, X, Wrench } from 'lucide-react';
+import { Settings as SettingsIcon, Trash2, AlertTriangle, Package, Truck, Container, BookOpen, DollarSign, ShoppingCart, Receipt, Wallet, FileText, Plus, RefreshCw, Edit2, Check, X, Wrench, Users, ArrowRightLeft } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useContainers } from '../hooks/useContainers';
@@ -8,6 +8,7 @@ import { usePayments } from '../hooks/usePayments';
 import { useSales } from '../hooks/useSales';
 import { useExpenses } from '../hooks/useExpenses';
 import { useCashSituation } from '../hooks/useCashSituation';
+import { usePartners } from '../hooks/usePartners';
 import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import ConfirmModal from './ConfirmModal';
 import Modal from './Modal';
@@ -33,6 +34,8 @@ interface DataSelectionState {
   sales: boolean;
   expenses: boolean;
   cashTransactions: boolean;
+  partners: boolean;
+  partnerTransactions: boolean;
 }
 
 export default function Settings() {
@@ -44,6 +47,7 @@ export default function Settings() {
   const { sales } = useSales();
   const { expenses } = useExpenses();
   const { cashTransactions } = useCashSituation();
+  const { partners, partnerTransactions } = usePartners();
   const { status: saveStatus } = useSaveStatusContext();
 
   const [selectedData, setSelectedData] = useState<DataSelectionState>({
@@ -55,6 +59,8 @@ export default function Settings() {
     sales: false,
     expenses: false,
     cashTransactions: false,
+    partners: false,
+    partnerTransactions: false,
   });
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -227,6 +233,20 @@ export default function Settings() {
       description: 'All ledger entries and transaction history',
       count: ledgerEntries.length,
     },
+    {
+      id: 'partners',
+      name: 'Partners',
+      icon: Users,
+      description: 'Partner information and balances',
+      count: partners.length,
+    },
+    {
+      id: 'partnerTransactions',
+      name: 'Partner Transactions',
+      icon: ArrowRightLeft,
+      description: 'All partner injections and withdrawals',
+      count: partnerTransactions.length,
+    },
   ];
 
   const toggleDataType = (id: keyof DataSelectionState) => {
@@ -268,6 +288,8 @@ export default function Settings() {
         sales: false,
         expenses: false,
         cashTransactions: false,
+        partners: false,
+        partnerTransactions: false,
       });
 
       setShowConfirmModal(false);
