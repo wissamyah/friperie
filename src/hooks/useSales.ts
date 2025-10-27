@@ -271,24 +271,54 @@ export function useSales() {
           throw new Error('Related cash transaction not found');
         }
 
-        // Calculate stock adjustments (restore original, subtract new)
-        const stockAdjustments = new Map<string, number>();
-        originalSale.products.forEach((p) => {
-          stockAdjustments.set(p.productId, (stockAdjustments.get(p.productId) || 0) + p.quantityBags);
-        });
-        saleProducts.forEach((p) => {
-          stockAdjustments.set(p.productId, (stockAdjustments.get(p.productId) || 0) - p.quantityBags);
-        });
+        // STEP 1: Aggregate ORIGINAL sale quantities (restore stock first)
+        const originalAggregated = aggregateProductsFromSale(originalSale.products);
 
-        // Validate stock availability
-        for (const [productId, adjustment] of stockAdjustments) {
+        // STEP 2: Aggregate NEW sale quantities (what will be deducted)
+        const newAggregated = aggregateProductsFromSale(saleProducts);
+
+        // STEP 3: Calculate restored stock for each product and validate against new requirements
+        const stockAdjustments = new Map<string, number>();
+
+        // First, restore all original quantities
+        for (const [productId, aggregated] of originalAggregated) {
+          stockAdjustments.set(productId, aggregated.totalQuantity);
+        }
+
+        // Then, subtract new quantities
+        for (const [productId, aggregated] of newAggregated) {
+          const current = stockAdjustments.get(productId) || 0;
+          stockAdjustments.set(productId, current - aggregated.totalQuantity);
+        }
+
+        // STEP 4: Validate stock availability with clear error messages
+        for (const [productId, netAdjustment] of stockAdjustments) {
           const product = currentProducts.find((p) => p.id === productId);
           if (!product) {
-            throw new Error('Product not found');
+            const productName = newAggregated.get(productId)?.productName || originalAggregated.get(productId)?.productName || 'Unknown';
+            throw new Error(`Product "${productName}" not found`);
           }
-          if (product.quantity + adjustment < 0) {
+
+          // Calculate what stock will be after reversal
+          const originalQuantity = originalAggregated.get(productId)?.totalQuantity || 0;
+          const newQuantity = newAggregated.get(productId)?.totalQuantity || 0;
+          const restoredStock = product.quantity + originalQuantity;
+
+          // Validate against new requirement
+          if (restoredStock < newQuantity) {
             throw new Error(
-              `Insufficient stock for ${product.name}. Available: ${product.quantity}, Required: ${Math.abs(adjustment)}`
+              `Insufficient stock for "${product.name}". ` +
+              `Current stock: ${product.quantity} bags. ` +
+              `After reversing original sale: ${restoredStock} bags available. ` +
+              `You need: ${newQuantity} bags.`
+            );
+          }
+
+          // Also validate that the net adjustment won't result in negative stock
+          if (product.quantity + netAdjustment < 0) {
+            throw new Error(
+              `Insufficient stock for "${product.name}". ` +
+              `Current: ${product.quantity}, After update: ${product.quantity + netAdjustment}`
             );
           }
         }
@@ -327,7 +357,7 @@ export function useSales() {
         // Recalculate ALL cash transaction balances to ensure consistency
         const recalculatedTransactions = recalculateAllCashBalances(transactionsWithUpdate);
 
-        // Update products
+        // Update products with net adjustments
         const updatedProducts = currentProducts.map((product) => {
           const adjustment = stockAdjustments.get(product.id);
           if (adjustment !== undefined && adjustment !== 0) {
