@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, Trash2, ShoppingCart, Edit2, X, Package, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
 import { useProducts } from '../hooks/useProducts';
@@ -39,6 +39,18 @@ export default function Sales() {
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; date: string } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Ref for auto-focus on first product field
+  const firstProductSelectRef = useRef<HTMLSelectElement>(null);
+
+  // Auto-focus first product field when modal opens
+  useEffect(() => {
+    if (isModalOpen && firstProductSelectRef.current) {
+      setTimeout(() => {
+        firstProductSelectRef.current?.focus();
+      }, 100);
+    }
+  }, [isModalOpen]);
 
   // Form state
   const [date, setDate] = useState('');
@@ -684,6 +696,7 @@ export default function Sales() {
                                 Product <span className="text-creed-danger">*</span>
                               </label>
                               <select
+                                ref={index === 0 ? firstProductSelectRef : undefined}
                                 value={row.productId}
                                 onChange={(e) => updateProductRow(row.id, 'productId', e.target.value)}
                                 disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
@@ -784,6 +797,7 @@ export default function Sales() {
                                 Product <span className="text-creed-danger">*</span>
                               </label>
                               <select
+                                ref={index === 0 ? firstProductSelectRef : undefined}
                                 value={row.productId}
                                 onChange={(e) => updateProductRow(row.id, 'productId', e.target.value)}
                                 disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}

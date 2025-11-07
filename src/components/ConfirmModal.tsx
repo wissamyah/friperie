@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import Modal from './Modal';
 import Spinner from './Spinner';
@@ -26,6 +26,24 @@ export default function ConfirmModal({
   isLoading = false,
   loadingText,
 }: ConfirmModalProps) {
+  // Handle Enter key to confirm
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isOpen && e.key === 'Enter' && !isLoading) {
+        e.preventDefault();
+        onConfirm();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, isLoading, onConfirm]);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div className="space-y-3">

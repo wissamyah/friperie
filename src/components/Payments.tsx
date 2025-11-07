@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, DollarSign, Edit2, ArrowRightLeft } from 'lucide-react';
 import { usePayments } from '../hooks/usePayments';
 import { useSuppliers } from '../hooks/useSuppliers';
@@ -28,6 +28,18 @@ export default function Payments() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<{ id: string; originalSupplierId: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; supplierName: string } | null>(null);
+
+  // Ref for auto-focus
+  const supplierSelectRef = useRef<HTMLSelectElement>(null);
+
+  // Auto-focus supplier field when modal opens
+  useEffect(() => {
+    if (isModalOpen && supplierSelectRef.current) {
+      setTimeout(() => {
+        supplierSelectRef.current?.focus();
+      }, 100);
+    }
+  }, [isModalOpen]);
 
   // Form state
   const [supplierId, setSupplierId] = useState('');
@@ -551,6 +563,7 @@ export default function Payments() {
                 Supplier <span className="text-creed-danger">*</span>
               </label>
               <select
+                ref={supplierSelectRef}
                 value={supplierId}
                 onChange={(e) => setSupplierId(e.target.value)}
                 disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
@@ -685,7 +698,15 @@ export default function Payments() {
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any notes about this payment..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (supplierId && date && amountEUR > 0 && exchangeRate > 0 && commissionPercent !== '' && !isActionLoading(isEditMode ? 'update' : 'create') && saveStatus !== 'saving') {
+                    handleSubmitPayment(e as any);
+                  }
+                }
+              }}
+              placeholder="Add any notes about this payment... (Press Enter to submit, Shift+Enter for new line)"
               rows={3}
               disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
               className="w-full px-4 py-2 rounded-lg border transition-all focus:ring-2 focus:ring-creed-primary focus:border-creed-primary outline-none disabled:opacity-50 disabled:cursor-not-allowed text-creed-text placeholder-creed-muted resize-none"

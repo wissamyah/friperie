@@ -241,7 +241,7 @@ export default function Dashboard() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto sidebar-scroll">
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;

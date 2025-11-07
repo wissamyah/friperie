@@ -220,7 +220,15 @@ export default function StockAdjustmentModal({
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Explain why this adjustment is needed"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (quantityInput && reason.trim() && !isLoading && newQuantity >= 0) {
+                  handleSubmit(e as any);
+                }
+              }
+            }}
+            placeholder="Explain why this adjustment is needed (Press Enter to submit, Shift+Enter for new line)"
             rows={3}
             disabled={isLoading}
             className="w-full px-4 py-2 rounded-lg border transition-all focus:ring-2 focus:ring-creed-primary focus:border-creed-primary outline-none disabled:opacity-50 disabled:cursor-not-allowed text-creed-text placeholder-creed-muted resize-none"

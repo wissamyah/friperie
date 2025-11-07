@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Plus, Trash2, Receipt, Edit2, X, Building2, Zap, Users, Megaphone, Package, Truck, Wrench, Calendar, DollarSign, FileText, ChevronLeft, ChevronRight, Coffee, CreditCard, Send, Banknote, AlertCircle } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { Plus, Trash2, Receipt, Edit2, X, Building2, Zap, Users, Megaphone, Package, Truck, Wrench, Calendar, DollarSign, FileText, ChevronLeft, ChevronRight, Coffee, CreditCard, Send, Banknote, AlertCircle, Settings } from 'lucide-react';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSaveStatusContext } from '../contexts/SaveStatusContext';
 import ConfirmModal from './ConfirmModal';
@@ -16,11 +16,13 @@ const categoryConfig = {
   'Supplies': { icon: Package, color: 'bg-green-500/20 text-green-400 border-green-500/30' },
   'Transportation': { icon: Truck, color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
   'Maintenance': { icon: Wrench, color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
+  'Operations': { icon: Settings, color: 'bg-teal-500/20 text-teal-400 border-teal-500/30' },
   'Daily Expenses on Casuals': { icon: Coffee, color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
   'Commission on Repayment': { icon: CreditCard, color: 'bg-red-500/20 text-red-400 border-red-500/30' },
   'Commission on Transfer': { icon: Send, color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
   'Custom Duties Payment': { icon: Banknote, color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
   'Additional Customs Fees': { icon: AlertCircle, color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
+  'Financial': { icon: FileText, color: 'bg-violet-500/20 text-violet-400 border-violet-500/30' },
   'Other': { icon: Receipt, color: 'bg-creed-muted/20 text-creed-muted border-creed-muted/30' },
 };
 
@@ -56,6 +58,19 @@ export default function Expenses() {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Ref for auto-focus
+  const categorySelectRef = useRef<HTMLSelectElement>(null);
+
+  // Auto-focus category field when modal opens
+  useEffect(() => {
+    if (isModalOpen && categorySelectRef.current) {
+      // Small delay to ensure modal is fully rendered
+      setTimeout(() => {
+        categorySelectRef.current?.focus();
+      }, 100);
+    }
+  }, [isModalOpen]);
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -554,6 +569,7 @@ export default function Expenses() {
                       Category <span className="text-creed-danger">*</span>
                     </label>
                     <select
+                      ref={categorySelectRef}
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
                       disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
@@ -608,7 +624,15 @@ export default function Expenses() {
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Describe this expense..."
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (isFormValid() && !isActionLoading(isEditMode ? 'update' : 'create') && saveStatus !== 'saving') {
+                            handleSubmit(e as any);
+                          }
+                        }
+                      }}
+                      placeholder="Describe this expense... (Press Enter to submit, Shift+Enter for new line)"
                       rows={3}
                       disabled={isActionLoading(isEditMode ? 'update' : 'create') || saveStatus === 'saving'}
                       className="w-full px-3 py-1.5 text-sm rounded-md border transition-all focus:ring-1 focus:ring-creed-primary focus:border-creed-primary outline-none disabled:opacity-50 disabled:cursor-not-allowed text-creed-text placeholder-creed-muted resize-none"

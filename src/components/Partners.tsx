@@ -720,12 +720,18 @@ export default function Partners() {
                 setPartnerName(e.target.value);
                 setPartnerError(null);
               }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && partnerName.trim() && !isActionLoading(editingPartnerId ? 'update' : 'create')) {
+                  e.preventDefault();
+                  handleSavePartner();
+                }
+              }}
               className="w-full px-3 py-2 rounded-lg border text-creed-text placeholder-creed-muted focus:outline-none focus:ring-2 focus:ring-creed-primary"
               style={{
                 backgroundColor: '#151a21',
                 borderColor: '#2d3748',
               }}
-              placeholder="Enter partner name"
+              placeholder="Enter partner name (Press Enter to save)"
               autoFocus
             />
           </div>
@@ -869,12 +875,20 @@ export default function Partners() {
                 setTransactionDescription(e.target.value);
                 setTransactionError(null);
               }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (transactionDate && transactionAmount && transactionDescription.trim() && !isActionLoading('transaction')) {
+                    handleSaveTransaction();
+                  }
+                }
+              }}
               className="w-full px-3 py-2 rounded-lg border text-creed-text placeholder-creed-muted focus:outline-none focus:ring-2 focus:ring-creed-primary resize-none"
               style={{
                 backgroundColor: '#151a21',
                 borderColor: '#2d3748',
               }}
-              placeholder="Enter transaction description"
+              placeholder="Enter transaction description (Press Enter to submit, Shift+Enter for new line)"
               rows={3}
             />
           </div>

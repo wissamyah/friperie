@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, Trash2, Container as ContainerIcon, X, Package, TrendingUp, DollarSign, Edit2 } from 'lucide-react';
 import { useContainers } from '../hooks/useContainers';
 import { useSuppliers } from '../hooks/useSuppliers';
@@ -61,6 +61,18 @@ export default function Containers() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingContainerId, setEditingContainerId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; containerNumber: string } | null>(null);
+
+  // Ref for auto-focus
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus date field when modal opens
+  useEffect(() => {
+    if (isModalOpen && dateInputRef.current) {
+      setTimeout(() => {
+        dateInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isModalOpen]);
 
   // Form state
   const [date, setDate] = useState('');
@@ -1431,6 +1443,7 @@ export default function Containers() {
                         Date <span className="text-creed-danger">*</span>
                       </label>
                       <input
+                        ref={dateInputRef}
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
@@ -2112,7 +2125,15 @@ export default function Containers() {
               <textarea
                 value={quickPaymentData.notes}
                 onChange={(e) => setQuickPaymentData({ ...quickPaymentData, notes: e.target.value })}
-                placeholder="Add transaction notes or reference number..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (quickPaymentData.date && quickPaymentData.amountEUR && quickPaymentData.exchangeRate && !isCreatingPayment) {
+                      handleQuickPayment();
+                    }
+                  }
+                }}
+                placeholder="Add transaction notes or reference number... (Press Enter to submit, Shift+Enter for new line)"
                 rows={2}
                 className="w-full px-3 py-2 text-sm rounded-lg border transition-all focus:ring-2 focus:ring-creed-primary focus:border-creed-primary outline-none text-creed-text placeholder-creed-muted resize-none"
                 style={{
